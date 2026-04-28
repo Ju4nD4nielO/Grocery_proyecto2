@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    container_name: tienda_db
+    restart: always
+    environment:
+      POSTGRES_USER: proy2
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: tienda
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./database/data.sql:/docker-entrypoint-initdb.d/2-data.sql
+
+  backend:
+    build: ./backend
+    container_name: tienda_backend
+    restart: always
+    depends_on:
+      - db
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+
+  frontend:
+    build: ./frontend
+    container_name: tienda_frontend
+    restart: always
+    ports:
+      - "8080:80"
