@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: tienda
     ports:
-      - "5432:5432"
+      - "5433:5433"
     volumes:
       - ./baseDatos/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
       - ./baseDatos/data.sql:/docker-entrypoint-initdb.d/2-data.sql
@@ -22,7 +22,7 @@ services:
     depends_on:
       - db
     ports:
-      - "3000:3000"
+      - "3008:3008"
     env_file:
       - .env
 
@@ -31,4 +31,4 @@ services:
     container_name: tienda_frontend
     restart: always
     ports:
-      - "8080:80"
+      - "8081:80"

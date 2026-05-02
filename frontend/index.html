@@ -1,12 +1,576 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>Tienda</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GroceryOS</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; display: flex; background: #f5f5f5; }
+  #sidebar { width: 180px; background: #222; min-height: 100vh; padding: 16px 0; }
+  #sidebar h2 { color: #fff; text-align: center; font-size: 1rem; margin-bottom: 20px; }
+  #sidebar a { display: block; padding: 10px 16px; color: #ccc; cursor: pointer; font-size: .9rem; text-decoration: none; }
+  #sidebar a:hover, #sidebar a.active { background: #444; color: #fff; }
+  #main { flex: 1; padding: 24px; }
+  h1 { font-size: 1.4rem; margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: .88rem; }
+  th { background: #eee; }
+  button { padding: 6px 14px; cursor: pointer; font-size: .85rem; border: none; border-radius: 4px; }
+  .btn-primary { background: #2563eb; color: #fff; }
+  .btn-danger  { background: #dc2626; color: #fff; }
+  .btn-edit    { background: #f59e0b; color: #fff; }
+  button:hover { opacity: .85; }
+  .page { display: none; } .page.active { display: block; }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: flex-end; }
+  .form-row label { display: flex; flex-direction: column; font-size: .82rem; gap: 4px; }
+  .form-row input, .form-row select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: .88rem; }
+  #alert { position: fixed; top: 16px; right: 16px; padding: 10px 18px; border-radius: 6px; font-size: .88rem; display: none; z-index: 999; }
+  .alert-ok  { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
+  .alert-err { background: #fee2e2; border: 1px solid #dc2626; color: #b91c1c; }
+  .section-title { margin: 24px 0 10px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  .carrito-item { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; font-size: .88rem; }
+  .carrito-item span { flex: 1; }
+  .carrito-item input { width: 60px; }
+  #venta-total { font-weight: bold; margin-top: 10px; }
+  #venta-error { color: #dc2626; font-size: .85rem; margin-top: 6px; }
+</style>
 </head>
 <body>
-  <h1>Productos</h1>
-  <table id="tabla"></table>
 
-  <script src="app.js"></script>
+<div id="sidebar">
+  <h2>GroceryOS</h2>
+  <a onclick="goTo('dashboard')" class="active">Dashboard</a>
+  <a onclick="goTo('ventas')">Nueva Venta</a>
+  <a onclick="goTo('productos')">Productos</a>
+  <a onclick="goTo('categorias')">Categorías</a>
+  <a onclick="goTo('clientes')">Clientes</a>
+  <a onclick="goTo('empleados')">Empleados</a>
+  <a onclick="goTo('proveedores')">Proveedores</a>
+  <a onclick="goTo('reportes')">Reportes</a>
+</div>
+
+<div id="main">
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <h1>Dashboard</h1>
+    <p id="kpi-text" style="margin-bottom:16px;color:#555;font-size:.9rem;">Cargando…</p>
+    <div class="section-title">Últimas ventas (vista_ventas_detalle)</div>
+    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Empleado</th><th>Total</th></tr></thead>
+    <tbody id="dash-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- NUEVA VENTA -->
+  <div id="page-ventas" class="page">
+    <h1>Nueva Venta</h1>
+    <div class="form-row">
+      <label>Cliente <select id="v-cliente"><option value="">Seleccionar…</option></select></label>
+      <label>Empleado <select id="v-empleado"><option value="">Seleccionar…</option></select></label>
+    </div>
+    <div class="section-title">Agregar producto</div>
+    <div class="form-row">
+      <label>Producto <select id="v-producto"><option value="">Seleccionar…</option></select></label>
+      <label>Cantidad <input type="number" id="v-cantidad" value="1" min="1" style="width:70px"/></label>
+      <button class="btn-primary" onclick="agregarProducto()">Agregar</button>
+    </div>
+    <div class="section-title">Carrito</div>
+    <div id="carrito-lista"><em>Sin productos</em></div>
+    <div id="venta-total">Total: Q0.00</div>
+    <div id="venta-error"></div>
+    <br/>
+    <button class="btn-primary" onclick="procesarVenta()">Confirmar venta</button>
+  </div>
+
+  <!-- PRODUCTOS -->
+  <div id="page-productos" class="page">
+    <h1>Productos</h1>
+    <div class="form-row">
+      <input type="hidden" id="prod-id"/>
+      <label>Nombre <input id="prod-nombre" placeholder="Nombre"/></label>
+      <label>Descripción <input id="prod-desc" placeholder="Opcional"/></label>
+      <label>Precio <input id="prod-precio" type="number" step="0.01" min="0" style="width:80px"/></label>
+      <label>Stock <input id="prod-stock" type="number" min="0" style="width:70px"/></label>
+      <label>Categoría <select id="prod-cat"></select></label>
+      <button class="btn-primary" onclick="guardarProducto()">Guardar</button>
+      <button onclick="cancelarEdicion('prod')">Cancelar</button>
+    </div>
+    <div id="prod-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
+    <table><thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
+    <tbody id="prod-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- CATEGORIAS -->
+  <div id="page-categorias" class="page">
+    <h1>Categorías</h1>
+    <div class="form-row">
+      <input type="hidden" id="cat-id"/>
+      <label>Nombre <input id="cat-nombre" placeholder="Nombre"/></label>
+      <label>Descripción <input id="cat-desc" placeholder="Opcional"/></label>
+      <button class="btn-primary" onclick="guardarCategoria()">Guardar</button>
+      <button onclick="cancelarEdicion('cat')">Cancelar</button>
+    </div>
+    <div id="cat-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
+    <table><thead><tr><th>Nombre</th><th>Descripción</th><th>Acciones</th></tr></thead>
+    <tbody id="cat-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- CLIENTES -->
+  <div id="page-clientes" class="page">
+    <h1>Clientes</h1>
+    <div class="form-row">
+      <input type="hidden" id="cli-id"/>
+      <label>Nombre <input id="cli-nombre" placeholder="Nombre completo"/></label>
+      <label>Email <input id="cli-email" type="email" placeholder="correo@email.com"/></label>
+      <label>Teléfono <input id="cli-tel" placeholder="5501-0000"/></label>
+      <button class="btn-primary" onclick="guardarCliente()">Guardar</button>
+      <button onclick="cancelarEdicion('cli')">Cancelar</button>
+    </div>
+    <div id="cli-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
+    <table><thead><tr><th>Nombre</th><th>Email</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+    <tbody id="cli-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- EMPLEADOS -->
+  <div id="page-empleados" class="page">
+    <h1>Empleados</h1>
+    <div class="form-row">
+      <input type="hidden" id="emp-id"/>
+      <label>Nombre <input id="emp-nombre" placeholder="Nombre completo"/></label>
+      <label>Puesto
+        <select id="emp-puesto">
+          <option>Cajero</option><option>Vendedor</option>
+          <option>Bodeguero</option><option>Gerente</option>
+        </select>
+      </label>
+      <button class="btn-primary" onclick="guardarEmpleado()">Guardar</button>
+      <button onclick="cancelarEdicion('emp')">Cancelar</button>
+    </div>
+    <table><thead><tr><th>Nombre</th><th>Puesto</th><th>Acciones</th></tr></thead>
+    <tbody id="emp-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- PROVEEDORES -->
+  <div id="page-proveedores" class="page">
+    <h1>Proveedores</h1>
+    <div class="form-row">
+      <input type="hidden" id="prov-id"/>
+      <label>Nombre <input id="prov-nombre" placeholder="Nombre"/></label>
+      <label>Teléfono <input id="prov-tel" placeholder="2345-0000"/></label>
+      <label>Email <input id="prov-email" type="email" placeholder="correo@proveedor.com"/></label>
+      <button class="btn-primary" onclick="guardarProveedor()">Guardar</button>
+      <button onclick="cancelarEdicion('prov')">Cancelar</button>
+    </div>
+    <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr></thead>
+    <tbody id="prov-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
+  </div>
+
+  <!-- REPORTES -->
+  <div id="page-reportes" class="page">
+    <h1>Reportes SQL</h1>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      <button onclick="showReport('ventas-detalle')">Ventas (VIEW)</button>
+      <button onclick="showReport('productos-vendidos')">Prod. vendidos (JOIN)</button>
+      <button onclick="showReport('clientes-compras')">Clientes (JOIN)</button>
+      <button onclick="showReport('ventas-por-categoria')">Por categoría (GROUP BY)</button>
+      <button onclick="showReport('productos-sin-ventas')">Sin ventas (IN)</button>
+      <button onclick="showReport('clientes-frecuentes')">Frecuentes (EXISTS)</button>
+      <button onclick="showReport('ranking-empleados')">Empleados (CTE)</button>
+      <button onclick="showReport('stock-bajo')">Stock bajo (subquery)</button>
+      <button class="btn-primary" onclick="exportarCSV()">Exportar CSV</button>
+    </div>
+    <div id="reporte-label" style="font-size:.8rem;color:#666;margin-bottom:8px;"></div>
+    <table><thead id="rep-head"></thead><tbody id="rep-body"><tr><td>Selecciona un reporte…</td></tr></tbody></table>
+  </div>
+
+</div>
+
+<div id="alert"></div>
+
+<script>
+const API = 'http://localhost:3008';
+
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`#sidebar a[onclick="goTo('${page}')"]`).classList.add('active');
+  loaders[page]?.();
+}
+
+function showAlert(msg, type = 'ok') {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = 'alert-' + type;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3000);
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+
+const Q = n => 'Q' + parseFloat(n || 0).toFixed(2);
+
+function cancelarEdicion(prefix) {
+  document.getElementById(prefix + '-id').value = '';
+  document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el => {
+    if (el.tagName === 'INPUT' && el.type !== 'hidden') el.value = '';
+  });
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const [productos, clientes, ventas] = await Promise.all([
+      api('/productos'), api('/clientes'), api('/reportes/ventas-detalle')
+    ]);
+    document.getElementById('kpi-text').textContent =
+      `${productos.length} productos · ${clientes.length} clientes · ${ventas.length} ventas registradas`;
+    document.getElementById('dash-body').innerHTML = ventas.slice(0, 10).map(v => `
+      <tr><td>#${v.id_venta}</td><td>${new Date(v.fecha).toLocaleDateString('es-GT')}</td>
+      <td>${v.cliente}</td><td>${v.empleado} (${v.puesto})</td><td>${Q(v.total)}</td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── PRODUCTOS ──
+async function loadProductos() {
+  try {
+    const [rows, cats] = await Promise.all([api('/productos'), api('/categorias')]);
+    document.getElementById('prod-cat').innerHTML = cats.map(c => `<option value="${c.id_categoria}">${c.nombre}</option>`).join('');
+    document.getElementById('prod-body').innerHTML = rows.map(p => `
+      <tr><td>${p.nombre}</td><td>${p.categoria}</td><td>${Q(p.precio)}</td><td>${p.stock}</td>
+      <td>
+        <button class="btn-edit" onclick='editProd(${JSON.stringify(p)})'>Editar</button>
+        <button class="btn-danger" onclick="delProd(${p.id_producto})">Eliminar</button>
+      </td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function editProd(p) {
+  document.getElementById('prod-id').value = p.id_producto;
+  document.getElementById('prod-nombre').value = p.nombre;
+  document.getElementById('prod-desc').value = p.descripcion || '';
+  document.getElementById('prod-precio').value = p.precio;
+  document.getElementById('prod-stock').value = p.stock;
+  document.getElementById('prod-cat').value = p.id_categoria;
+}
+
+async function guardarProducto() {
+  const errEl = document.getElementById('prod-error');
+  const id = document.getElementById('prod-id').value;
+  const body = {
+    nombre: document.getElementById('prod-nombre').value.trim(),
+    descripcion: document.getElementById('prod-desc').value.trim(),
+    precio: parseFloat(document.getElementById('prod-precio').value),
+    stock: parseInt(document.getElementById('prod-stock').value),
+    id_categoria: parseInt(document.getElementById('prod-cat').value),
+  };
+  if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
+  if (isNaN(body.precio) || body.precio < 0) { errEl.textContent = 'Precio inválido'; return; }
+  if (isNaN(body.stock) || body.stock < 0) { errEl.textContent = 'Stock inválido'; return; }
+  errEl.textContent = '';
+  try {
+    if (id) await api('/productos/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else    await api('/productos',        { method: 'POST', body: JSON.stringify(body) });
+    cancelarEdicion('prod');
+    showAlert(id ? 'Producto actualizado' : 'Producto creado');
+    loadProductos();
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+async function delProd(id) {
+  if (!confirm('¿Eliminar este producto?')) return;
+  try { await api('/productos/' + id, { method: 'DELETE' }); showAlert('Eliminado'); loadProductos(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── CATEGORÍAS ──
+async function loadCategorias() {
+  try {
+    const rows = await api('/categorias');
+    document.getElementById('cat-body').innerHTML = rows.map(c => `
+      <tr><td>${c.nombre}</td><td>${c.descripcion || '—'}</td>
+      <td>
+        <button class="btn-edit" onclick='editCat(${JSON.stringify(c)})'>Editar</button>
+        <button class="btn-danger" onclick="delCat(${c.id_categoria})">Eliminar</button>
+      </td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function editCat(c) {
+  document.getElementById('cat-id').value = c.id_categoria;
+  document.getElementById('cat-nombre').value = c.nombre;
+  document.getElementById('cat-desc').value = c.descripcion || '';
+}
+
+async function guardarCategoria() {
+  const errEl = document.getElementById('cat-error');
+  const id = document.getElementById('cat-id').value;
+  const body = { nombre: document.getElementById('cat-nombre').value.trim(), descripcion: document.getElementById('cat-desc').value.trim() };
+  if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
+  errEl.textContent = '';
+  try {
+    if (id) await api('/categorias/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else    await api('/categorias',        { method: 'POST', body: JSON.stringify(body) });
+    cancelarEdicion('cat');
+    showAlert(id ? 'Categoría actualizada' : 'Categoría creada');
+    loadCategorias();
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+async function delCat(id) {
+  if (!confirm('¿Eliminar esta categoría?')) return;
+  try { await api('/categorias/' + id, { method: 'DELETE' }); showAlert('Eliminada'); loadCategorias(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── CLIENTES ──
+async function loadClientes() {
+  try {
+    const rows = await api('/clientes');
+    document.getElementById('cli-body').innerHTML = rows.map(c => `
+      <tr><td>${c.nombre}</td><td>${c.email || '—'}</td><td>${c.telefono || '—'}</td>
+      <td>
+        <button class="btn-edit" onclick='editCli(${JSON.stringify(c)})'>Editar</button>
+        <button class="btn-danger" onclick="delCli(${c.id_cliente})">Eliminar</button>
+      </td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function editCli(c) {
+  document.getElementById('cli-id').value = c.id_cliente;
+  document.getElementById('cli-nombre').value = c.nombre;
+  document.getElementById('cli-email').value = c.email || '';
+  document.getElementById('cli-tel').value = c.telefono || '';
+}
+
+async function guardarCliente() {
+  const errEl = document.getElementById('cli-error');
+  const id = document.getElementById('cli-id').value;
+  const body = { nombre: document.getElementById('cli-nombre').value.trim(), email: document.getElementById('cli-email').value.trim(), telefono: document.getElementById('cli-tel').value.trim() };
+  if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
+  errEl.textContent = '';
+  try {
+    if (id) await api('/clientes/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else    await api('/clientes',        { method: 'POST', body: JSON.stringify(body) });
+    cancelarEdicion('cli');
+    showAlert(id ? 'Cliente actualizado' : 'Cliente creado');
+    loadClientes();
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+async function delCli(id) {
+  if (!confirm('¿Eliminar este cliente?')) return;
+  try { await api('/clientes/' + id, { method: 'DELETE' }); showAlert('Eliminado'); loadClientes(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── EMPLEADOS ──
+async function loadEmpleados() {
+  try {
+    const rows = await api('/empleados');
+    document.getElementById('emp-body').innerHTML = rows.map(e => `
+      <tr><td>${e.nombre}</td><td>${e.puesto}</td>
+      <td>
+        <button class="btn-edit" onclick='editEmp(${JSON.stringify(e)})'>Editar</button>
+        <button class="btn-danger" onclick="delEmp(${e.id_empleado})">Eliminar</button>
+      </td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function editEmp(e) {
+  document.getElementById('emp-id').value = e.id_empleado;
+  document.getElementById('emp-nombre').value = e.nombre;
+  document.getElementById('emp-puesto').value = e.puesto;
+}
+
+async function guardarEmpleado() {
+  const id = document.getElementById('emp-id').value;
+  const body = { nombre: document.getElementById('emp-nombre').value.trim(), puesto: document.getElementById('emp-puesto').value };
+  try {
+    if (id) await api('/empleados/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else    await api('/empleados',        { method: 'POST', body: JSON.stringify(body) });
+    cancelarEdicion('emp');
+    showAlert(id ? 'Empleado actualizado' : 'Empleado creado');
+    loadEmpleados();
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function delEmp(id) {
+  if (!confirm('¿Eliminar este empleado?')) return;
+  try { await api('/empleados/' + id, { method: 'DELETE' }); showAlert('Eliminado'); loadEmpleados(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── PROVEEDORES ──
+async function loadProveedores() {
+  try {
+    const rows = await api('/proveedores');
+    document.getElementById('prov-body').innerHTML = rows.map(p => `
+      <tr><td>${p.nombre}</td><td>${p.telefono || '—'}</td><td>${p.email || '—'}</td>
+      <td>
+        <button class="btn-edit" onclick='editProv(${JSON.stringify(p)})'>Editar</button>
+        <button class="btn-danger" onclick="delProv(${p.id_proveedor})">Eliminar</button>
+      </td></tr>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function editProv(p) {
+  document.getElementById('prov-id').value = p.id_proveedor;
+  document.getElementById('prov-nombre').value = p.nombre;
+  document.getElementById('prov-tel').value = p.telefono || '';
+  document.getElementById('prov-email').value = p.email || '';
+}
+
+async function guardarProveedor() {
+  const id = document.getElementById('prov-id').value;
+  const body = { nombre: document.getElementById('prov-nombre').value.trim(), telefono: document.getElementById('prov-tel').value.trim(), email: document.getElementById('prov-email').value.trim() };
+  try {
+    if (id) await api('/proveedores/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else    await api('/proveedores',        { method: 'POST', body: JSON.stringify(body) });
+    cancelarEdicion('prov');
+    showAlert(id ? 'Proveedor actualizado' : 'Proveedor creado');
+    loadProveedores();
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function delProv(id) {
+  if (!confirm('¿Eliminar este proveedor?')) return;
+  try { await api('/proveedores/' + id, { method: 'DELETE' }); showAlert('Eliminado'); loadProveedores(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── NUEVA VENTA ──
+let carrito = [];
+
+async function loadVentas() {
+  const [clientes, empleados, productos] = await Promise.all([api('/clientes'), api('/empleados'), api('/productos')]);
+  document.getElementById('v-cliente').innerHTML = '<option value="">Seleccionar…</option>' +
+    clientes.map(c => `<option value="${c.id_cliente}">${c.nombre}</option>`).join('');
+  document.getElementById('v-empleado').innerHTML = '<option value="">Seleccionar…</option>' +
+    empleados.map(e => `<option value="${e.id_empleado}">${e.nombre} (${e.puesto})</option>`).join('');
+  document.getElementById('v-producto').innerHTML = '<option value="">Seleccionar…</option>' +
+    productos.map(p => `<option value="${p.id_producto}" data-precio="${p.precio}" data-stock="${p.stock}">${p.nombre} — ${Q(p.precio)} (stock: ${p.stock})</option>`).join('');
+  carrito = [];
+  renderCarrito();
+}
+
+function agregarProducto() {
+  const sel = document.getElementById('v-producto');
+  const id = parseInt(sel.value);
+  const cant = parseInt(document.getElementById('v-cantidad').value);
+  if (!id || cant < 1) { showAlert('Selecciona producto y cantidad válida', 'err'); return; }
+  const opt = sel.options[sel.selectedIndex];
+  const precio = parseFloat(opt.dataset.precio);
+  const stock = parseInt(opt.dataset.stock);
+  if (cant > stock) { showAlert(`Stock insuficiente (disponible: ${stock})`, 'err'); return; }
+  const ex = carrito.find(i => i.id_producto === id);
+  if (ex) ex.cantidad += cant;
+  else carrito.push({ id_producto: id, nombre: opt.text.split(' — ')[0], cantidad: cant, precio });
+  renderCarrito();
+}
+
+function renderCarrito() {
+  const cont = document.getElementById('carrito-lista');
+  cont.innerHTML = carrito.length
+    ? carrito.map((item, i) => `
+        <div class="carrito-item">
+          <span>${item.nombre}</span>
+          <input type="number" value="${item.cantidad}" min="1" onchange="updateCant(${i},this.value)"/>
+          <span>${Q(item.precio * item.cantidad)}</span>
+          <button onclick="removeItem(${i})">✕</button>
+        </div>`).join('')
+    : '<em>Sin productos</em>';
+  const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  document.getElementById('venta-total').textContent = 'Total: ' + Q(total);
+}
+
+function updateCant(i, v) { carrito[i].cantidad = Math.max(1, parseInt(v) || 1); renderCarrito(); }
+function removeItem(i) { carrito.splice(i, 1); renderCarrito(); }
+
+async function procesarVenta() {
+  const errEl = document.getElementById('venta-error');
+  const id_cliente  = parseInt(document.getElementById('v-cliente').value);
+  const id_empleado = parseInt(document.getElementById('v-empleado').value);
+  if (!id_cliente)     { errEl.textContent = 'Selecciona un cliente'; return; }
+  if (!id_empleado)    { errEl.textContent = 'Selecciona un empleado'; return; }
+  if (!carrito.length) { errEl.textContent = 'Agrega al menos un producto'; return; }
+  errEl.textContent = '';
+  try {
+    const r = await api('/ventas', { method: 'POST', body: JSON.stringify({ id_cliente, id_empleado, productos: carrito }) });
+    showAlert(`Venta #${r.id_venta} registrada`);
+    carrito = [];
+    renderCarrito();
+    loadVentas();
+  } catch (e) { errEl.textContent = '⚠ ' + e.message; }
+}
+
+// ── REPORTES ──
+let repData = [];
+let repActual = '';
+
+const repHeaders = {
+  'ventas-detalle':       ['#', 'Fecha', 'Cliente', 'Empleado', 'Puesto', 'Total'],
+  'productos-vendidos':   ['Producto', 'Categoría', 'Proveedor', 'Unidades', 'Ingresos'],
+  'clientes-compras':     ['Cliente', 'Email', 'Compras', 'Total gastado'],
+  'ventas-por-categoria': ['Categoría', 'Ventas', 'Unidades', 'Ingresos'],
+  'productos-sin-ventas': ['Producto', 'Stock', 'Categoría'],
+  'clientes-frecuentes':  ['Cliente', 'Email', 'Teléfono'],
+  'ranking-empleados':    ['Ranking', 'Empleado', 'Puesto', 'Ventas', 'Monto total'],
+  'stock-bajo':           ['Producto', 'Stock', 'Categoría', 'Promedio cat.'],
+};
+
+const repRow = {
+  'ventas-detalle':       r => [r.id_venta, new Date(r.fecha).toLocaleDateString('es-GT'), r.cliente, r.empleado, r.puesto, Q(r.total)],
+  'productos-vendidos':   r => [r.producto, r.categoria, r.proveedor, r.total_vendido, Q(r.ingresos)],
+  'clientes-compras':     r => [r.cliente, r.email||'—', r.num_compras, Q(r.total_gastado)],
+  'ventas-por-categoria': r => [r.categoria, r.num_ventas, r.unidades_vendidas, Q(r.ingresos_total)],
+  'productos-sin-ventas': r => [r.nombre, r.stock, r.categoria],
+  'clientes-frecuentes':  r => [r.nombre, r.email||'—', r.telefono||'—'],
+  'ranking-empleados':    r => ['#'+r.ranking, r.empleado, r.puesto, r.ventas_atendidas, Q(r.monto_total)],
+  'stock-bajo':           r => [r.nombre, r.stock, r.categoria, parseFloat(r.promedio_categoria).toFixed(1)],
+};
+
+async function showReport(name) {
+  repActual = name;
+  document.getElementById('rep-body').innerHTML = '<tr><td>Cargando…</td></tr>';
+  document.getElementById('reporte-label').textContent = 'Ejecutando: /reportes/' + name;
+  try {
+    repData = await api('/reportes/' + name);
+    const heads = repHeaders[name];
+    document.getElementById('rep-head').innerHTML = '<tr>' + heads.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    document.getElementById('rep-body').innerHTML = repData.length
+      ? repData.map(r => '<tr>' + repRow[name](r).map(c => `<td>${c}</td>`).join('') + '</tr>').join('')
+      : `<tr><td colspan="${heads.length}">Sin resultados</td></tr>`;
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function exportarCSV() {
+  if (!repData.length) { showAlert('No hay datos para exportar', 'err'); return; }
+  const heads = repHeaders[repActual];
+  const csv = [heads, ...repData.map(r => repRow[repActual](r))].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], {type:'text/csv'})), download: `reporte_${repActual}.csv` });
+  a.click();
+  showAlert('CSV exportado');
+}
+
+function loadReportes() { showReport('ventas-detalle'); }
+
+const loaders = {
+  dashboard:   loadDashboard,
+  productos:   loadProductos,
+  categorias:  loadCategorias,
+  clientes:    loadClientes,
+  empleados:   loadEmpleados,
+  proveedores: loadProveedores,
+  ventas:      loadVentas,
+  reportes:    loadReportes,
+};
+
+loadDashboard();
+</script>
 </body>
 </html>
