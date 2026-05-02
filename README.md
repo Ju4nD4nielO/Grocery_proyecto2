@@ -9,7 +9,7 @@ Aplicación web para gestión de inventario y ventas de una tienda.
 ## Levantar el proyecto
 
 ```bash
-git clone <url-del-repositorio>
+git clone https://github.com/Ju4nD4nielO/Grocery_proyecto2
 cp .env.example .env   # las variables ya vienen con valores correctos
 docker compose up --build
 ```
