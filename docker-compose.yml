@@ -10,25 +10,36 @@ services:
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: tienda
     ports:
-      - "5433:5433"
+      - "5433:5432"
     volumes:
       - ./baseDatos/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
       - ./baseDatos/data.sql:/docker-entrypoint-initdb.d/2-data.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proy2 -d tienda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: ./backend
     container_name: tienda_backend
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3008:3008"
     env_file:
       - .env
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:3008
     container_name: tienda_frontend
     restart: always
+    depends_on:
+      - backend
     ports:
       - "8081:80"
