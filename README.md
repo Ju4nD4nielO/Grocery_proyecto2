@@ -105,29 +105,29 @@ La aplicación queda disponible en:
 Base URL: `http://localhost:3008`
 
 ### Productos `/productos`
-| Método | Ruta             | Descripción            |
-|--------|------------------|------------------------|
-| GET    | `/productos`     | Listar todos           |
-| GET    | `/productos/:id` | Obtener por ID         |
-| POST   | `/productos`     | Crear producto         |
-| PUT    | `/productos/:id` | Actualizar producto    |
-| DELETE | `/productos/:id` | Eliminar producto      |
+| Método | Ruta             | Descripción         |
+|--------|------------------|---------------------|
+| GET    | `/productos`     | Listar todos        |
+| GET    | `/productos/:id` | Obtener por ID      |
+| POST   | `/productos`     | Crear producto      |
+| PUT    | `/productos/:id` | Actualizar producto |
+| DELETE | `/productos/:id` | Eliminar producto   |
 
 ### Clientes `/clientes`
-| Método | Ruta            | Descripción         |
-|--------|-----------------|---------------------|
-| GET    | `/clientes`     | Listar todos        |
-| GET    | `/clientes/:id` | Obtener por ID      |
-| POST   | `/clientes`     | Crear cliente       |
-| PUT    | `/clientes/:id` | Actualizar cliente  |
-| DELETE | `/clientes/:id` | Eliminar cliente    |
+| Método | Ruta            | Descripción        |
+|--------|-----------------|--------------------|
+| GET    | `/clientes`     | Listar todos       |
+| GET    | `/clientes/:id` | Obtener por ID     |
+| POST   | `/clientes`     | Crear cliente      |
+| PUT    | `/clientes/:id` | Actualizar cliente |
+| DELETE | `/clientes/:id` | Eliminar cliente   |
 
 ### Categorías, Empleados, Proveedores
 Misma estructura CRUD en `/categorias`, `/empleados`, `/proveedores`.
 
 ### Ventas `/ventas`
-| Método | Ruta      | Descripción                              |
-|--------|-----------|------------------------------------------|
+| Método | Ruta      | Descripción                                      |
+|--------|-----------|--------------------------------------------------|
 | POST   | `/ventas` | Crear venta con transacción y descuento de stock |
 
 Body esperado:
@@ -143,18 +143,57 @@ Body esperado:
 ```
 
 ### Reportes `/reportes`
-| Ruta                             | Descripción                                 |
-|----------------------------------|---------------------------------------------|
-| `/reportes/ventas-detalle`       | Vista con cliente, empleado y total         |
-| `/reportes/productos-vendidos`   | JOIN producto, categoría y proveedor        |
-| `/reportes/clientes-compras`     | Clientes con total gastado y nº de compras  |
-| `/reportes/ventas-por-categoria` | GROUP BY + HAVING sobre categorías          |
-| `/reportes/productos-sin-ventas` | Subquery con IN                             |
-| `/reportes/clientes-frecuentes`  | Subquery con EXISTS                         |
-| `/reportes/ranking-empleados`    | CTE + window function ROW_NUMBER            |
-| `/reportes/stock-bajo`           | Subquery correlacionado vs. promedio        |
+| Ruta                             | Descripción                              |
+|----------------------------------|------------------------------------------|
+| `/reportes/ventas-detalle`       | Vista con cliente, empleado y total      |
+| `/reportes/productos-vendidos`   | JOIN producto, categoría y proveedor     |
+| `/reportes/clientes-compras`     | Clientes con total gastado y nº compras  |
+| `/reportes/ventas-por-categoria` | GROUP BY + HAVING sobre categorías       |
+| `/reportes/productos-sin-ventas` | Subquery con IN                          |
+| `/reportes/clientes-frecuentes`  | Subquery con EXISTS                      |
+| `/reportes/ranking-empleados`    | CTE + window function ROW_NUMBER         |
+| `/reportes/stock-bajo`           | Subquery correlacionado vs. promedio     |
 
 Todos los endpoints devuelven JSON. Los errores devuelven el código HTTP correspondiente (400, 404, 500) con `{ "error": "mensaje" }`.
+
+---
+
+## Pruebas y calidad de código
+
+### Correr las pruebas unitarias
+
+```bash
+cd frontend
+npm install   # solo la primera vez
+npm test
+```
+
+Resultado esperado:
+```
+ ✓ contexts.test.jsx (10 tests)
+   ✓ AuthContext > starts unauthenticated
+   ✓ AuthContext > logs in with valid credentials
+   ✓ AuthContext > stays unauthenticated on bad credentials
+   ✓ AuthContext > logs out and clears user
+   ✓ CartContext > starts empty
+   ✓ CartContext > adds item and computes total
+   ✓ CartContext > merges duplicate items
+   ✓ CartContext > updates quantity
+   ✓ CartContext > removes an item
+   ✓ CartContext > clears the cart
+
+ Test Files  1 passed (1)
+ Tests       10 passed (10)
+```
+
+### Correr el linter
+
+```bash
+cd frontend
+npm run lint
+```
+
+Resultado esperado: sin errores ni warnings.
 
 ---
 
@@ -164,7 +203,7 @@ Todos los endpoints devuelven JSON. Los errores devuelven el código HTTP corres
 - Endpoints documentados en este README
 - CRUD completo para productos, clientes, categorías, empleados y proveedores
 - Manejo de errores con códigos HTTP correctos y mensajes en JSON
-- Endpoints de agregación en `/reportes` (totales de ventas, stock, rankings)
+- Endpoints de agregación en `/reportes`
 
 ### II. Frontend — React
 - **React Router** con 8 rutas: `/login`, `/`, `/ventas`, `/productos`, `/categorias`, `/clientes`, `/empleados`, `/proveedores`, `/reportes`
@@ -172,12 +211,14 @@ Todos los endpoints devuelven JSON. Los errores devuelven el código HTTP corres
 - **Hooks**: `useState`, `useEffect`, `useCallback` en todas las páginas; `useMemo` en `CartContext` para el total
 - **`useReducer`** en `CartContext` para el flujo completo del carrito (ADD, UPDATE, REMOVE, CLEAR)
 - **Formularios controlados** con validación en cliente en todas las páginas CRUD
-- **Reportes** con tabla de datos reales y gráfica de barras en el Dashboard (recharts)
+- **Reportes** con tabla de datos reales y gráfica de barras en Dashboard (recharts)
 - **Manejo de errores** visible mediante sistema de Toast y mensajes inline en formularios
 
 ### III. Calidad de código
-- ESLint configurado: `npm run lint`
-- 10 pruebas unitarias con Vitest + Testing Library: `npm test`
+- ESLint configurado en `.eslintrc.cjs` — verificable con `npm run lint`
+- **10 pruebas unitarias** con Vitest + Testing Library — verificables con `npm test`
+  - 4 pruebas sobre `AuthContext` (login, logout, credenciales incorrectas)
+  - 6 pruebas sobre `CartContext` (agregar, acumular, actualizar, eliminar, vaciar)
 
 ### IV. Despliegue
 - `docker compose up --build` levanta la base de datos, backend y frontend sin pasos adicionales
@@ -186,7 +227,7 @@ Todos los endpoints devuelven JSON. Los errores devuelven el código HTTP corres
 ### V. Avanzado
 - Autenticación con login/logout manejado en `AuthContext` (sesión en `sessionStorage`)
 - Exportación a CSV desde la página de Reportes
-- Diseño responsivo verificable en móvil y escritorio
+- Diseño responsivo verificable en móvil y escritorio (media queries en `index.css`)
 
 ---
 
@@ -194,17 +235,15 @@ Todos los endpoints devuelven JSON. Los errores devuelven el código HTTP corres
 
 ```bash
 # Backend
-cd backend
-npm install
-node src/app.js
+cd backend && npm install && node src/app.js
 
 # Frontend
 cd frontend
 npm install
-npm run dev      # desarrollo
-npm run build    # producción
-npm run lint     # linter
-npm test         # pruebas
+npm run dev      # desarrollo en http://localhost:5173
+npm run build    # build de producción
+npm run lint     # linter (debe dar 0 errores)
+npm test         # 10 pruebas unitarias
 ```
 
 ---
