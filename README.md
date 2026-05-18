@@ -4,6 +4,9 @@ Aplicación web para gestión de inventario y ventas de una tienda. Frontend en 
 
 ---
 
+## Link al proyecto en render
+https://tienda-frontend-j4ut.onrender.com/login
+
 ## Levantar el proyecto
 
 ```bash
