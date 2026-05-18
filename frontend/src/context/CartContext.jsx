@@ -64,7 +64,6 @@ export function CartProvider({ children }) {
     dispatch({ type: 'SET_EMPLEADO', id_empleado }), [])
   const clear = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-  // useMemo: total calculado solo cuando cambian items
   const total = useMemo(
     () => state.items.reduce((sum, i) => sum + i.precio * i.cantidad, 0),
     [state.items]

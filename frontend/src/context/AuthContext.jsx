@@ -2,11 +2,11 @@ import { createContext, useContext, useState, useCallback } from 'react'
 
 const AuthContext = createContext(null)
 
-// Usuarios hardcodeados para demo (en producción vendría del backend)
+// Usuarios simulados
 const USERS = [
-  { id: 1, username: 'admin',   password: 'admin123',  role: 'Gerente',  nombre: 'Rosa Tzoc' },
-  { id: 2, username: 'cajero',  password: 'cajero123', role: 'Cajero',   nombre: 'Roberto Ajú' },
-  { id: 3, username: 'vendedor',password: 'vend123',   role: 'Vendedor', nombre: 'Elena Cuc' },
+  { id: 1, username: 'admin',   password: 'admin123',  role: 'Gerente',  nombre: 'Sergio Herandez' },
+  { id: 2, username: 'cajero',  password: 'cajero123', role: 'Cajero',   nombre: 'Oscar Tan' },
+  { id: 3, username: 'vendedor',password: 'vend123',   role: 'Vendedor', nombre: 'Josue Giron' },
 ]
 
 export function AuthProvider({ children }) {

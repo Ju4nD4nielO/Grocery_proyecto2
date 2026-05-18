@@ -2,27 +2,21 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../hooks/useApi'
 import { useToast } from '../components/Toast'
 
-const empty = { nombre: '', descripcion: '', precio: '', stock: '', id_categoria: '' }
-const Q = n => 'Q' + parseFloat(n || 0).toFixed(2)
-
-export default function Productos() {
+// ── Generic CRUD table ────────────────────────────────────
+function CrudPage({ title, subtitle, endpoint, fields, idKey, renderRow, headers }) {
   const toast = useToast()
   const [rows, setRows] = useState([])
-  const [cats, setCats] = useState([])
-  const [form, setForm] = useState(empty)
+  const [form, setForm] = useState(() => Object.fromEntries(fields.map(f => [f.name, ''])))
   const [editId, setEditId] = useState(null)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
-    try {
-      const [p, c] = await Promise.all([api.get('/productos'), api.get('/categorias')])
-      setRows(p)
-      setCats(c)
-    } catch (e) { toast(e.message, 'err') }
+    try { setRows(await api.get('/' + endpoint)) }
+    catch (e) { toast(e.message, 'err') }
     finally { setLoading(false) }
-  }, [toast])
+  }, [endpoint, toast])
 
   useEffect(() => { load() }, [load])
 
@@ -34,39 +28,35 @@ export default function Productos() {
 
   function validate() {
     const errs = {}
-    if (!form.nombre.trim()) errs.nombre = 'Requerido'
-    if (form.precio === '' || isNaN(+form.precio) || +form.precio < 0) errs.precio = 'Precio inválido'
-    if (form.stock === '' || isNaN(+form.stock) || +form.stock < 0) errs.stock = 'Stock inválido'
-    if (!form.id_categoria) errs.id_categoria = 'Selecciona categoría'
+    fields.forEach(f => {
+      if (f.required && !form[f.name]?.toString().trim()) errs[f.name] = 'Requerido'
+      if (f.type === 'email' && form[f.name] && !/\S+@\S+\.\S+/.test(form[f.name]))
+        errs[f.name] = 'Email inválido'
+    })
     return errs
   }
 
   async function save() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
-    const body = {
-      nombre: form.nombre.trim(),
-      descripcion: form.descripcion.trim(),
-      precio: parseFloat(form.precio),
-      stock: parseInt(form.stock),
-      id_categoria: parseInt(form.id_categoria),
-    }
+    const body = Object.fromEntries(fields.map(f => [f.name, form[f.name].trim?.() ?? form[f.name]]))
     try {
-      if (editId) { await api.put('/productos/' + editId, body); toast('Producto actualizado') }
-      else        { await api.post('/productos', body);          toast('Producto creado') }
-      setForm(empty); setEditId(null); load()
+      if (editId) { await api.put(`/${endpoint}/${editId}`, body); toast(`${title} actualizado`) }
+      else        { await api.post(`/${endpoint}`, body);          toast(`${title} creado`) }
+      setForm(Object.fromEntries(fields.map(f => [f.name, ''])))
+      setEditId(null); setErrors({}); load()
     } catch (e) { toast(e.message, 'err') }
   }
 
-  function edit(p) {
-    setForm({ nombre: p.nombre, descripcion: p.descripcion || '', precio: p.precio, stock: p.stock, id_categoria: p.id_categoria })
-    setEditId(p.id_producto)
+  function edit(row) {
+    setForm(Object.fromEntries(fields.map(f => [f.name, row[f.name] || ''])))
+    setEditId(row[idKey])
     setErrors({})
   }
 
   async function del(id) {
-    if (!confirm('¿Eliminar este producto?')) return
-    try { await api.delete('/productos/' + id); toast('Eliminado'); load() }
+    if (!confirm('¿Confirmar eliminación?')) return
+    try { await api.delete(`/${endpoint}/${id}`); toast('Eliminado'); load() }
     catch (e) { toast(e.message, 'err') }
   }
 
@@ -74,45 +64,42 @@ export default function Productos() {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">Productos</div>
-          <div className="page-subtitle">Gestión de inventario</div>
+          <div className="page-title">{title}</div>
+          <div className="page-subtitle">{subtitle}</div>
         </div>
       </div>
 
-      {/* Form */}
       <div className="table-wrap" style={{ padding: 16, marginBottom: 20 }}>
-        <div className="section-title" style={{ marginTop: 0 }}>{editId ? 'Editar producto' : 'Nuevo producto'}</div>
+        <div className="section-title" style={{ marginTop: 0 }}>{editId ? `Editar ${title}` : `Nuevo ${title}`}</div>
         <div className="form-row">
-          <div className="form-group">
-            <label>Nombre *</label>
-            <input className="form-control" name="nombre" value={form.nombre} onChange={handle} placeholder="Leche entera 1L" />
-            {errors.nombre && <div className="form-error">{errors.nombre}</div>}
-          </div>
-          <div className="form-group">
-            <label>Descripción</label>
-            <input className="form-control" name="descripcion" value={form.descripcion} onChange={handle} placeholder="Opcional" />
-          </div>
-          <div className="form-group">
-            <label>Precio (Q) *</label>
-            <input className="form-control" name="precio" type="number" step="0.01" min="0" value={form.precio} onChange={handle} style={{ minWidth: 90 }} />
-            {errors.precio && <div className="form-error">{errors.precio}</div>}
-          </div>
-          <div className="form-group">
-            <label>Stock *</label>
-            <input className="form-control" name="stock" type="number" min="0" value={form.stock} onChange={handle} style={{ minWidth: 80 }} />
-            {errors.stock && <div className="form-error">{errors.stock}</div>}
-          </div>
-          <div className="form-group">
-            <label>Categoría *</label>
-            <select className="form-control" name="id_categoria" value={form.id_categoria} onChange={handle}>
-              <option value="">Seleccionar…</option>
-              {cats.map(c => <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>)}
-            </select>
-            {errors.id_categoria && <div className="form-error">{errors.id_categoria}</div>}
-          </div>
+          {fields.map(f => (
+            <div className="form-group" key={f.name}>
+              <label>{f.label}{f.required ? ' *' : ''}</label>
+              {f.options ? (
+                <select className="form-control" name={f.name} value={form[f.name]} onChange={handle}>
+                  {f.options.map(o => <option key={o}>{o}</option>)}
+                </select>
+              ) : (
+                <input
+                  className="form-control"
+                  name={f.name}
+                  type={f.type || 'text'}
+                  value={form[f.name]}
+                  onChange={handle}
+                  placeholder={f.placeholder || ''}
+                />
+              )}
+              {errors[f.name] && <div className="form-error">{errors[f.name]}</div>}
+            </div>
+          ))}
           <div className="form-group" style={{ justifyContent: 'flex-end', gap: 6 }}>
             <button className="btn btn-primary" onClick={save}>{editId ? 'Actualizar' : 'Crear'}</button>
-            {editId && <button className="btn btn-ghost" onClick={() => { setForm(empty); setEditId(null); setErrors({}) }}>Cancelar</button>}
+            {editId && (
+              <button className="btn btn-ghost" onClick={() => {
+                setForm(Object.fromEntries(fields.map(f => [f.name, ''])))
+                setEditId(null); setErrors({})
+              }}>Cancelar</button>
+            )}
           </div>
         </div>
       </div>
@@ -120,24 +107,15 @@ export default function Productos() {
       {loading ? <div className="loading">CARGANDO…</div> : (
         <div className="table-wrap">
           <table>
-            <thead>
-              <tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr>
-            </thead>
+            <thead><tr>{headers.map(h => <th key={h}>{h}</th>)}<th>Acciones</th></tr></thead>
             <tbody>
-              {rows.map(p => (
-                <tr key={p.id_producto}>
-                  <td>{p.nombre}</td>
-                  <td><span className="badge badge-blue">{p.categoria}</span></td>
-                  <td style={{ fontFamily: 'var(--mono, monospace)' }}>{Q(p.precio)}</td>
-                  <td>
-                    <span className={`badge ${p.stock < 30 ? 'badge-red' : p.stock < 80 ? 'badge-warn' : 'badge-green'}`}>
-                      {p.stock}
-                    </span>
-                  </td>
+              {rows.map(row => (
+                <tr key={row[idKey]}>
+                  {renderRow(row)}
                   <td>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-edit btn-sm" onClick={() => edit(p)}>Editar</button>
-                      <button className="btn btn-danger btn-sm" onClick={() => del(p.id_producto)}>Eliminar</button>
+                      <button className="btn btn-edit btn-sm" onClick={() => edit(row)}>Editar</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => del(row[idKey])}>Eliminar</button>
                     </div>
                   </td>
                 </tr>
@@ -147,5 +125,82 @@ export default function Productos() {
         </div>
       )}
     </div>
+  )
+}
+
+export function Categorias() {
+  return (
+    <CrudPage
+      title="Categorías" subtitle="Grupos de productos"
+      endpoint="categorias" idKey="id_categoria"
+      headers={['Nombre', 'Descripción']}
+      fields={[
+        { name: 'nombre',      label: 'Nombre',      required: true, placeholder: 'Lácteos' },
+        { name: 'descripcion', label: 'Descripción',              placeholder: 'Opcional' },
+      ]}
+      renderRow={r => (<>
+        <td>{r.nombre}</td>
+        <td style={{ color: 'var(--muted)' }}>{r.descripcion || '—'}</td>
+      </>)}
+    />
+  )
+}
+
+export function Clientes() {
+  return (
+    <CrudPage
+      title="Clientes" subtitle="Base de clientes"
+      endpoint="clientes" idKey="id_cliente"
+      headers={['Nombre', 'Email', 'Teléfono']}
+      fields={[
+        { name: 'nombre',   label: 'Nombre',    required: true, placeholder: 'Ana García' },
+        { name: 'email',    label: 'Email',      type: 'email', placeholder: 'correo@email.com' },
+        { name: 'telefono', label: 'Teléfono',               placeholder: '5501-0000' },
+      ]}
+      renderRow={r => (<>
+        <td>{r.nombre}</td>
+        <td style={{ color: 'var(--muted)' }}>{r.email || '—'}</td>
+        <td style={{ color: 'var(--muted)' }}>{r.telefono || '—'}</td>
+      </>)}
+    />
+  )
+}
+
+export function Empleados() {
+  const puestos = ['Cajero', 'Vendedor', 'Bodeguero', 'Gerente']
+  return (
+    <CrudPage
+      title="Empleados" subtitle="Personal de la tienda"
+      endpoint="empleados" idKey="id_empleado"
+      headers={['Nombre', 'Puesto']}
+      fields={[
+        { name: 'nombre', label: 'Nombre',  required: true, placeholder: 'Roberto Ajú' },
+        { name: 'puesto', label: 'Puesto',  options: puestos },
+      ]}
+      renderRow={r => (<>
+        <td>{r.nombre}</td>
+        <td><span className="badge badge-warn">{r.puesto}</span></td>
+      </>)}
+    />
+  )
+}
+
+export function Proveedores() {
+  return (
+    <CrudPage
+      title="Proveedores" subtitle="Proveedores de productos"
+      endpoint="proveedores" idKey="id_proveedor"
+      headers={['Nombre', 'Teléfono', 'Email']}
+      fields={[
+        { name: 'nombre',   label: 'Nombre',    required: true, placeholder: 'Lácteos El Campo' },
+        { name: 'telefono', label: 'Teléfono',               placeholder: '2345-0000' },
+        { name: 'email',    label: 'Email',      type: 'email', placeholder: 'ventas@proveedor.com' },
+      ]}
+      renderRow={r => (<>
+        <td>{r.nombre}</td>
+        <td style={{ color: 'var(--muted)' }}>{r.telefono || '—'}</td>
+        <td style={{ color: 'var(--muted)' }}>{r.email || '—'}</td>
+      </>)}
+    />
   )
 }
