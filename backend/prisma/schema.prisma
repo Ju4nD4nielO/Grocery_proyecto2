@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Categoria {
+  id_categoria Int        @id @default(autoincrement())
+  nombre       String     @db.VarChar(100)
+  descripcion  String?
+  productos    Producto[]
+
+  @@map("categoria")
+}
+
+model Producto {
+  id_producto   Int                  @id @default(autoincrement())
+  nombre        String               @db.VarChar(100)
+  descripcion   String?
+  precio        Decimal              @db.Decimal(10, 2)
+  stock         Int
+  id_categoria  Int
+  categoria     Categoria            @relation(fields: [id_categoria], references: [id_categoria])
+  proveedores   ProductoProveedor[]
+  detalles      DetalleVenta[]
+
+  @@map("producto")
+}
+
+model Proveedor {
+  id_proveedor Int                  @id @default(autoincrement())
+  nombre       String               @db.VarChar(100)
+  telefono     String?              @db.VarChar(20)
+  email        String?              @db.VarChar(100)
+  productos    ProductoProveedor[]
+
+  @@map("proveedor")
+}
+
+model ProductoProveedor {
+  id_producto  Int
+  id_proveedor Int
+  producto     Producto  @relation(fields: [id_producto],  references: [id_producto],  onDelete: Cascade)
+  proveedor    Proveedor @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: Cascade)
+
+  @@id([id_producto, id_proveedor])
+  @@map("producto_proveedor")
+}
+
+model Cliente {
+  id_cliente Int     @id @default(autoincrement())
+  nombre     String  @db.VarChar(100)
+  email      String? @db.VarChar(100)
+  telefono   String? @db.VarChar(20)
+  ventas     Venta[]
+
+  @@map("cliente")
+}
+
+model Empleado {
+  id_empleado Int     @id @default(autoincrement())
+  nombre      String  @db.VarChar(100)
+  puesto      String? @db.VarChar(50)
+  ventas      Venta[]
+
+  @@map("empleado")
+}
+
+model Venta {
+  id_venta    Int            @id @default(autoincrement())
+  fecha       DateTime       @default(now())
+  id_cliente  Int
+  id_empleado Int
+  cliente     Cliente        @relation(fields: [id_cliente],  references: [id_cliente])
+  empleado    Empleado       @relation(fields: [id_empleado], references: [id_empleado])
+  detalles    DetalleVenta[]
+
+  @@map("venta")
+}
+
+model DetalleVenta {
+  id_detalle      Int      @id @default(autoincrement())
+  id_venta        Int
+  id_producto     Int
+  cantidad        Int
+  precio_unitario Decimal  @db.Decimal(10, 2)
+  venta           Venta    @relation(fields: [id_venta],    references: [id_venta],    onDelete: Cascade)
+  producto        Producto @relation(fields: [id_producto], references: [id_producto])
+
+  @@map("detalle_venta")
+}
+
+model UsuarioApp {
+  id_usuario    Int     @id @default(autoincrement())
+  username      String  @unique @db.VarChar(50)
+  password_hash String
+  rol           String  @db.VarChar(30)
+  nombre        String  @db.VarChar(100)
+  activo        Boolean @default(true)
+
+  @@map("usuario_app")
+}

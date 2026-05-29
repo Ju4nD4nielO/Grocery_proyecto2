@@ -86,9 +86,25 @@ CREATE TABLE detalle_venta (
 );
 
 -- ============================================
+-- TABLA: usuario_app 
+-- Almacena los usuarios de la aplicación con
+-- su rol de negocio.
+-- ============================================
+CREATE TABLE usuario_app (
+    id_usuario   SERIAL PRIMARY KEY,
+    username     VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash TEXT        NOT NULL,
+    rol          VARCHAR(30)  NOT NULL
+                 CHECK (rol IN ('admin','gerente','cajero','bodeguero','vendedor')),
+    nombre       VARCHAR(100) NOT NULL,
+    activo       BOOLEAN      DEFAULT TRUE
+);
+
+-- ============================================
 -- ÍNDICES (para rendimiento)
 -- ============================================
-CREATE INDEX idx_producto_categoria ON producto(id_categoria);
-CREATE INDEX idx_venta_cliente ON venta(id_cliente);
-CREATE INDEX idx_venta_empleado ON venta(id_empleado);
-CREATE INDEX idx_detalle_producto ON detalle_venta(id_producto);
+CREATE INDEX idx_producto_categoria  ON producto(id_categoria);
+CREATE INDEX idx_venta_cliente       ON venta(id_cliente);
+CREATE INDEX idx_venta_empleado      ON venta(id_empleado);
+CREATE INDEX idx_detalle_producto    ON detalle_venta(id_producto);
+CREATE INDEX idx_usuario_username    ON usuario_app(username);

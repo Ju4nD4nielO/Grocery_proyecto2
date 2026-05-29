@@ -1,88 +1,127 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../db');
+const express  = require('express');
+const router   = express.Router();
+const { prisma, pool } = require('../db');
+const { requireAuth, puedeVerProductos, puedeEditarStock, soloAdmin, adminOGerente } = require('../middleware/auth');
 
-// GET todos los productos (JOIN con categoria)
-router.get('/', async (req, res) => {
-try {
-    const result = await db.query(`
-      SELECT p.id_producto, p.nombre, p.descripcion, p.precio, p.stock,
-             c.id_categoria, c.nombre AS categoria
-      FROM producto p
-      JOIN categoria c ON p.id_categoria = c.id_categoria
-      ORDER BY p.nombre
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-
-// GET producto por id
-router.get('/:id', async (req, res) => {
+// GET /productos — todos los roles autenticados
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const result = await db.query(
-      `SELECT p.*, c.nombre AS categoria
-       FROM producto p
-       JOIN categoria c ON p.id_categoria = c.id_categoria
-       WHERE p.id_producto = $1`,
-      [req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
-    res.json(result.rows[0]);
+    // ORM — Prisma (CRUD: READ)
+    const productos = await prisma.producto.findMany({
+      include: { categoria: true },
+      orderBy: { nombre: 'asc' },
+    });
+    const result = productos.map(p => ({
+      id_producto:  p.id_producto,
+      nombre:       p.nombre,
+      descripcion:  p.descripcion,
+      precio:       p.precio,
+      stock:        p.stock,
+      id_categoria: p.id_categoria,
+      categoria:    p.categoria.nombre,
+    }));
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST crear producto
-router.post('/', async (req, res) => {
+// GET /productos/:id
+router.get('/:id', requireAuth, async (req, res) => {
+  try {
+    // ORM — Prisma (CRUD: READ)
+    const p = await prisma.producto.findUnique({
+      where:   { id_producto: parseInt(req.params.id) },
+      include: { categoria: true },
+    });
+    if (!p) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json({ ...p, categoria: p.categoria.nombre });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /productos — invoca SP sp_crear_producto
+// Roles: admin, gerente, bodeguero
+router.post('/', ...adminOGerente, async (req, res) => {
   const { nombre, descripcion, precio, stock, id_categoria } = req.body;
-  if (!nombre || !precio || stock === undefined || !id_categoria) {
+  if (!nombre || precio === undefined || stock === undefined || !id_categoria) {
     return res.status(400).json({ error: 'Campos requeridos: nombre, precio, stock, id_categoria' });
   }
   try {
-    const result = await db.query(
-      `INSERT INTO producto (nombre, descripcion, precio, stock, id_categoria)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [nombre, descripcion, precio, stock, id_categoria]
+    // Llamada al stored procedure sp_crear_producto
+    const result = await pool.query(
+      `SELECT * FROM sp_crear_producto($1, $2, $3, $4, $5)`,
+      [nombre, descripcion || null, parseFloat(precio), parseInt(stock), parseInt(id_categoria)]
     );
-    res.status(201).json(result.rows[0]);
+    const { p_id_producto, p_mensaje } = result.rows[0];
+    if (p_id_producto === -1) {
+      return res.status(400).json({ error: p_mensaje });
+    }
+    // ORM — Prisma (CRUD: READ) para devolver el objeto creado
+    const nuevo = await prisma.producto.findUnique({
+      where:   { id_producto: p_id_producto },
+      include: { categoria: true },
+    });
+    res.status(201).json({ ...nuevo, categoria: nuevo.categoria.nombre, mensaje: p_mensaje });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// PUT actualizar producto
-router.put('/:id', async (req, res) => {
+// PUT /productos/:id — Prisma ORM (CRUD: UPDATE)
+// Roles: admin, gerente, bodeguero
+router.put('/:id', ...puedeEditarStock, async (req, res) => {
   const { nombre, descripcion, precio, stock, id_categoria } = req.body;
   try {
-    const result = await db.query(
-      `UPDATE producto
-       SET nombre=$1, descripcion=$2, precio=$3, stock=$4, id_categoria=$5
-       WHERE id_producto=$6
-       RETURNING *`,
-      [nombre, descripcion, precio, stock, id_categoria, req.params.id]
+    // ORM — Prisma (CRUD: UPDATE)
+    const actualizado = await prisma.producto.update({
+      where: { id_producto: parseInt(req.params.id) },
+      data: {
+        nombre:       nombre,
+        descripcion:  descripcion,
+        precio:       precio !== undefined ? parseFloat(precio) : undefined,
+        stock:        stock  !== undefined ? parseInt(stock)    : undefined,
+        id_categoria: id_categoria ? parseInt(id_categoria) : undefined,
+      },
+      include: { categoria: true },
+    });
+    res.json({ ...actualizado, categoria: actualizado.categoria.nombre });
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Producto no encontrado' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /productos/:id/stock — ajuste de stock via SP
+// Roles: admin, bodeguero
+router.patch('/:id/stock', ...puedeEditarStock, async (req, res) => {
+  const { cantidad } = req.body;
+  if (cantidad === undefined) return res.status(400).json({ error: 'cantidad es requerida' });
+  try {
+    // Llamada al stored procedure sp_actualizar_stock
+    const result = await pool.query(
+      `SELECT * FROM sp_actualizar_stock($1, $2, $3)`,
+      [parseInt(req.params.id), parseInt(cantidad), 0]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
-    res.json(result.rows[0]);
+    const { p_stock_nuevo, p_mensaje } = result.rows[0];
+    if (p_stock_nuevo === -1) return res.status(400).json({ error: p_mensaje });
+    res.json({ stock_nuevo: p_stock_nuevo, mensaje: p_mensaje });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// DELETE producto
-router.delete('/:id', async (req, res) => {
+// DELETE /productos/:id — solo admin
+router.delete('/:id', ...soloAdmin, async (req, res) => {
   try {
-    const result = await db.query(
-      'DELETE FROM producto WHERE id_producto=$1 RETURNING *',
-      [req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Producto no encontrado' });
+    // ORM — Prisma (CRUD: DELETE)
+    await prisma.producto.delete({
+      where: { id_producto: parseInt(req.params.id) },
+    });
     res.json({ message: 'Producto eliminado' });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Producto no encontrado' });
     res.status(500).json({ error: err.message });
   }
 });

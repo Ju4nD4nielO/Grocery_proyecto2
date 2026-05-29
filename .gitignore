@@ -1,0 +1,26 @@
+# Dependencias
+node_modules/
+.npm
+
+# Variables de entorno
+.env
+
+# Prisma
+backend/src/generated/
+backend/node_modules/.prisma/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.env.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp

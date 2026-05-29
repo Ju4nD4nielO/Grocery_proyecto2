@@ -6,21 +6,31 @@ services:
     container_name: tienda_db
     restart: always
     environment:
-      POSTGRES_USER: proy2
+      POSTGRES_USER: proy3
       POSTGRES_PASSWORD: secret
       POSTGRES_DB: tienda
     ports:
-      - "5433:5433"
+      - "5433:5432"
     volumes:
+      # Los scripts se ejecutan en orden alfabético/numérico al inicializar
       - ./baseDatos/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
-      - ./baseDatos/data.sql:/docker-entrypoint-initdb.d/2-data.sql
+      - ./baseDatos/roles.sql:/docker-entrypoint-initdb.d/2-roles.sql
+      - ./baseDatos/procedures.sql:/docker-entrypoint-initdb.d/3-procedures.sql
+      - ./baseDatos/data.sql:/docker-entrypoint-initdb.d/4-data.sql
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U proy3 -d tienda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build: ./backend
     container_name: tienda_backend
     restart: always
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     ports:
       - "3008:3008"
     env_file:
@@ -32,3 +42,6 @@ services:
     restart: always
     ports:
       - "8081:80"
+
+volumes:
+  db_data:

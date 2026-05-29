@@ -1,87 +1,64 @@
-const express = require('express');
-const router = express.Router();
-const pool = require('../db');
+const express  = require('express');
+const router   = express.Router();
+const { pool } = require('../db');
+const { puedeVender, soloAdmin } = require('../middleware/auth');
 
-router.post('/', async (req, res) => {
-  const client = await pool.connect();
+// POST /ventas — registrar venta via SP (con transacción y ROLLBACK internos)
+router.post('/', ...puedeVender, async (req, res) => {
+  const { id_cliente, id_empleado, productos } = req.body;
+
+  if (!id_cliente || !id_empleado || !Array.isArray(productos) || productos.length === 0) {
+    return res.status(400).json({ error: 'id_cliente, id_empleado y productos son requeridos' });
+  }
+
+  // Construir el JSON que espera el SP
+  // productos = [{ id_producto, cantidad }, ...]
+  // El SP espera: [{"id": X, "cantidad": Y}, ...]
+  const productosJson = JSON.stringify(
+    productos.map(p => ({ id: p.id_producto, cantidad: p.cantidad }))
+  );
 
   try {
-    const { id_cliente, id_empleado, productos } = req.body;
-    /*
-      productos = [
-        { id_producto: 1, cantidad: 2 },
-        { id_producto: 3, cantidad: 1 }
-      ]
-    */
-
-    await client.query('BEGIN');
-
-    // 1. Crear venta
-    const ventaResult = await client.query(
-      `INSERT INTO venta (id_cliente, id_empleado)
-       VALUES ($1, $2)
-       RETURNING id_venta`,
-      [id_cliente, id_empleado]
+    // Llamada al stored procedure sp_registrar_venta
+    // El SP maneja internamente BEGIN / COMMIT / ROLLBACK
+    const result = await pool.query(
+      `SELECT * FROM sp_registrar_venta($1, $2, $3::jsonb)`,
+      [id_cliente, id_empleado, productosJson]
     );
 
-    const id_venta = ventaResult.rows[0].id_venta;
+    const { p_id_venta, p_mensaje } = result.rows[0];
 
-    // 2. Procesar cada producto
-    for (let item of productos) {
-      const { id_producto, cantidad } = item;
-
-      // 2.1 Verificar stock
-      const stockResult = await client.query(
-        `SELECT stock, precio FROM producto WHERE id_producto = $1`,
-        [id_producto]
-      );
-
-      if (stockResult.rows.length === 0) {
-        throw new Error(`Producto ${id_producto} no existe`);
-      }
-
-      const stock = stockResult.rows[0].stock;
-      const precio = stockResult.rows[0].precio;
-
-      if (stock < cantidad) {
-        throw new Error(`Stock insuficiente para producto ${id_producto}`);
-      }
-
-      // 2.2 Insertar detalle
-      await client.query(
-        `INSERT INTO detalle_venta 
-         (id_venta, id_producto, cantidad, precio_unitario)
-         VALUES ($1, $2, $3, $4)`,
-        [id_venta, id_producto, cantidad, precio]
-      );
-
-      // 2.3 Actualizar stock
-      await client.query(
-        `UPDATE producto
-         SET stock = stock - $1
-         WHERE id_producto = $2`,
-        [cantidad, id_producto]
-      );
+    if (p_id_venta === -1) {
+      return res.status(400).json({ error: p_mensaje });
     }
 
-    // 3. Confirmar
-    await client.query('COMMIT');
-
-    res.json({
-      message: 'Venta realizada correctamente',
-      id_venta
-    });
+    res.json({ message: p_mensaje, id_venta: p_id_venta });
 
   } catch (error) {
-    // ❗ MUY IMPORTANTE
-    await client.query('ROLLBACK');
+    res.status(400).json({ error: error.message });
+  }
+});
 
-    res.status(400).json({
-      error: error.message
-    });
+// DELETE /ventas/:id — cancelar venta via SP (restaura stock)
+// Solo admin puede cancelar ventas
+router.delete('/:id', ...soloAdmin, async (req, res) => {
+  try {
+    // Llamada al stored procedure sp_cancelar_venta
+    const result = await pool.query(
+      `SELECT * FROM sp_cancelar_venta($1)`,
+      [parseInt(req.params.id)]
+    );
 
-  } finally {
-    client.release();
+    const { p_exito, p_mensaje } = result.rows[0];
+
+    if (!p_exito) {
+      return res.status(400).json({ error: p_mensaje });
+    }
+
+    res.json({ message: p_mensaje });
+
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 

@@ -5,275 +5,642 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>GroceryOS</title>
 <style>
-  body { font-family: Arial, sans-serif; margin: 0; display: flex; background: #f5f5f5; }
-  #sidebar { width: 180px; background: #222; min-height: 100vh; padding: 16px 0; }
-  #sidebar h2 { color: #fff; text-align: center; font-size: 1rem; margin-bottom: 20px; }
-  #sidebar a { display: block; padding: 10px 16px; color: #ccc; cursor: pointer; font-size: .9rem; text-decoration: none; }
-  #sidebar a:hover, #sidebar a.active { background: #444; color: #fff; }
-  #main { flex: 1; padding: 24px; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+
+  /* ── LOGIN ─────────────────────────────────────────── */
+  #login-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; background: #1e293b;
+  }
+  #login-box {
+    background: #fff; border-radius: 10px; padding: 40px 36px;
+    width: 340px; box-shadow: 0 4px 24px rgba(0,0,0,.3);
+  }
+  #login-box h1 { margin: 0 0 6px; font-size: 1.5rem; color: #1e293b; }
+  #login-box p  { margin: 0 0 24px; color: #64748b; font-size: .88rem; }
+  #login-box label { display: block; font-size: .82rem; color: #475569; margin-bottom: 14px; }
+  #login-box input {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px;
+    font-size: .9rem; outline: none;
+  }
+  #login-box input:focus { border-color: #2563eb; }
+  #login-btn {
+    width: 100%; padding: 10px; background: #2563eb; color: #fff;
+    border: none; border-radius: 6px; font-size: .95rem;
+    cursor: pointer; margin-top: 8px;
+  }
+  #login-btn:hover { background: #1d4ed8; }
+  #login-error { color: #dc2626; font-size: .83rem; margin-top: 10px; text-align: center; }
+  .creds-hint {
+    margin-top: 20px; padding: 10px 12px; background: #f8fafc;
+    border: 1px solid #e2e8f0; border-radius: 6px; font-size: .78rem; color: #64748b;
+  }
+  .creds-hint b { color: #334155; }
+
+  /* ── APP SHELL ─────────────────────────────────────── */
+  #app { display: none; }
+  #app.visible { display: flex; }
+
+  #sidebar {
+    width: 190px; background: #1e293b; min-height: 100vh;
+    padding: 0; display: flex; flex-direction: column;
+  }
+  #sidebar-header {
+    padding: 20px 16px 16px; border-bottom: 1px solid #334155;
+  }
+  #sidebar-header h2 { color: #f1f5f9; margin: 0 0 4px; font-size: 1.1rem; }
+  #user-badge {
+    font-size: .75rem; color: #94a3b8;
+  }
+  #user-badge span {
+    display: inline-block; margin-top: 3px;
+    background: #334155; color: #e2e8f0; padding: 2px 8px;
+    border-radius: 12px; font-size: .7rem; text-transform: uppercase;
+  }
+  #sidebar nav { flex: 1; padding: 8px 0; }
+  #sidebar a {
+    display: block; padding: 10px 16px; color: #94a3b8;
+    cursor: pointer; font-size: .88rem; text-decoration: none;
+    transition: background .15s;
+  }
+  #sidebar a:hover  { background: #334155; color: #f1f5f9; }
+  #sidebar a.active { background: #2563eb; color: #fff; }
+  #sidebar a.nav-hidden { display: none; }
+  #logout-btn {
+    margin: 12px; padding: 9px; background: #334155; color: #94a3b8;
+    border: none; border-radius: 6px; cursor: pointer; font-size: .85rem;
+    width: calc(100% - 24px);
+  }
+  #logout-btn:hover { background: #dc2626; color: #fff; }
+
+  /* ── MAIN ──────────────────────────────────────────── */
+  #main { flex: 1; padding: 24px; overflow-y: auto; }
   h1 { font-size: 1.4rem; margin-bottom: 16px; }
-  table { border-collapse: collapse; width: 100%; background: #fff; }
-  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: .88rem; }
-  th { background: #eee; }
+  table { border-collapse: collapse; width: 100%; background: #fff; border-radius: 6px; overflow: hidden; }
+  th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: .88rem; }
+  th { background: #f8fafc; font-weight: 600; }
+  tr:hover td { background: #f8fafc; }
   button { padding: 6px 14px; cursor: pointer; font-size: .85rem; border: none; border-radius: 4px; }
   .btn-primary { background: #2563eb; color: #fff; }
   .btn-danger  { background: #dc2626; color: #fff; }
   .btn-edit    { background: #f59e0b; color: #fff; }
   button:hover { opacity: .85; }
-  .page { display: none; } .page.active { display: block; }
+  .page { display: none; }
+  .page.active { display: block; }
   .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; align-items: flex-end; }
   .form-row label { display: flex; flex-direction: column; font-size: .82rem; gap: 4px; }
-  .form-row input, .form-row select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: .88rem; }
-  #alert { position: fixed; top: 16px; right: 16px; padding: 10px 18px; border-radius: 6px; font-size: .88rem; display: none; z-index: 999; }
+  .form-row input, .form-row select {
+    padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: .88rem;
+  }
+  .error-msg { color: #dc2626; font-size: .83rem; margin-bottom: 8px; }
+  .section-title {
+    margin: 20px 0 10px; font-weight: 600; font-size: .9rem;
+    border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; color: #334155;
+  }
+  /* Rol badge en tabla */
+  .rol-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: .75rem; font-weight: 600; text-transform: uppercase;
+  }
+  .rol-admin     { background: #fef3c7; color: #92400e; }
+  .rol-gerente   { background: #dbeafe; color: #1e40af; }
+  .rol-cajero    { background: #dcfce7; color: #166534; }
+  .rol-bodeguero { background: #f3e8ff; color: #6b21a8; }
+  .rol-vendedor  { background: #fce7f3; color: #9d174d; }
+
+  /* ── ACCESO DENEGADO ───────────────────────────────── */
+  .access-denied {
+    text-align: center; padding: 60px 20px; color: #94a3b8;
+  }
+  .access-denied .icon { font-size: 3rem; margin-bottom: 12px; }
+  .access-denied h2 { color: #475569; }
+
+  /* ── CARRITO ───────────────────────────────────────── */
+  .carrito-item {
+    display: flex; gap: 10px; align-items: center;
+    padding: 7px 0; border-bottom: 1px solid #e2e8f0; font-size: .88rem;
+  }
+  .carrito-item span { flex: 1; }
+  .carrito-item input { width: 65px; }
+  #venta-total { font-weight: bold; margin-top: 12px; font-size: 1rem; color: #1e293b; }
+  #venta-error { color: #dc2626; font-size: .85rem; margin-top: 6px; }
+
+  /* ── ALERT ─────────────────────────────────────────── */
+  #alert {
+    position: fixed; top: 16px; right: 16px; padding: 10px 18px;
+    border-radius: 6px; font-size: .88rem; display: none; z-index: 9999;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  }
   .alert-ok  { background: #dcfce7; border: 1px solid #16a34a; color: #15803d; }
   .alert-err { background: #fee2e2; border: 1px solid #dc2626; color: #b91c1c; }
-  .section-title { margin: 24px 0 10px; font-weight: bold; font-size: .95rem; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
-  .carrito-item { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid #eee; font-size: .88rem; }
-  .carrito-item span { flex: 1; }
-  .carrito-item input { width: 60px; }
-  #venta-total { font-weight: bold; margin-top: 10px; }
-  #venta-error { color: #dc2626; font-size: .85rem; margin-top: 6px; }
+
+  /* ── DASHBOARD KPI cards ───────────────────────────── */
+  .kpi-grid { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .kpi-card {
+    background: #fff; border-radius: 8px; padding: 16px 20px;
+    min-width: 140px; flex: 1; border-left: 4px solid #2563eb;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+  }
+  .kpi-card .kpi-val { font-size: 1.6rem; font-weight: 700; color: #1e293b; }
+  .kpi-card .kpi-lbl { font-size: .78rem; color: #64748b; margin-top: 2px; }
 </style>
 </head>
 <body>
 
-<div id="sidebar">
-  <h2>GroceryOS</h2>
-  <a onclick="goTo('dashboard')" class="active">Dashboard</a>
-  <a onclick="goTo('ventas')">Nueva Venta</a>
-  <a onclick="goTo('productos')">Productos</a>
-  <a onclick="goTo('categorias')">Categorías</a>
-  <a onclick="goTo('clientes')">Clientes</a>
-  <a onclick="goTo('empleados')">Empleados</a>
-  <a onclick="goTo('proveedores')">Proveedores</a>
-  <a onclick="goTo('reportes')">Reportes</a>
+<!-- ══════════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div id="login-box">
+    <h1>🛒 GroceryOS</h1>
+    <p>Sistema de inventario y ventas</p>
+    <label>Usuario
+      <input id="l-user" type="text" placeholder="username" autocomplete="username"/>
+    </label>
+    <label>Contraseña
+      <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    </label>
+    <button id="login-btn" onclick="doLogin()">Iniciar sesión</button>
+    <div id="login-error"></div>
+    <div class="creds-hint">
+      <b>Usuarios de prueba</b> (contraseña: <b>password123</b>)<br>
+      admin1 · gerente1 · cajero1 · bodeguero1 · vendedor1
+    </div>
+  </div>
 </div>
 
-<div id="main">
+<!-- ══════════════════════════════════════════════════════
+     APP SHELL
+══════════════════════════════════════════════════════ -->
+<div id="app">
 
-  <!-- DASHBOARD -->
-  <div id="page-dashboard" class="page active">
-    <h1>Dashboard</h1>
-    <p id="kpi-text" style="margin-bottom:16px;color:#555;font-size:.9rem;">Cargando…</p>
-    <div class="section-title">Últimas ventas (vista_ventas_detalle)</div>
-    <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Empleado</th><th>Total</th></tr></thead>
-    <tbody id="dash-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h2>🛒 GroceryOS</h2>
+      <div id="user-badge">
+        <div id="user-name">—</div>
+        <span id="user-rol">—</span>
+      </div>
+    </div>
+    <nav>
+      <a id="nav-dashboard"   onclick="goTo('dashboard')">📊 Dashboard</a>
+      <a id="nav-ventas"      onclick="goTo('ventas')">🛒 Nueva Venta</a>
+      <a id="nav-productos"   onclick="goTo('productos')">📦 Productos</a>
+      <a id="nav-categorias"  onclick="goTo('categorias')">🏷️ Categorías</a>
+      <a id="nav-clientes"    onclick="goTo('clientes')">👥 Clientes</a>
+      <a id="nav-empleados"   onclick="goTo('empleados')">👤 Empleados</a>
+      <a id="nav-proveedores" onclick="goTo('proveedores')">🏭 Proveedores</a>
+      <a id="nav-reportes"    onclick="goTo('reportes')">📈 Reportes</a>
+    </nav>
+    <button id="logout-btn" onclick="doLogout()">⬅ Cerrar sesión</button>
   </div>
 
-  <!-- NUEVA VENTA -->
-  <div id="page-ventas" class="page">
-    <h1>Nueva Venta</h1>
-    <div class="form-row">
-      <label>Cliente <select id="v-cliente"><option value="">Seleccionar…</option></select></label>
-      <label>Empleado <select id="v-empleado"><option value="">Seleccionar…</option></select></label>
-    </div>
-    <div class="section-title">Agregar producto</div>
-    <div class="form-row">
-      <label>Producto <select id="v-producto"><option value="">Seleccionar…</option></select></label>
-      <label>Cantidad <input type="number" id="v-cantidad" value="1" min="1" style="width:70px"/></label>
-      <button class="btn-primary" onclick="agregarProducto()">Agregar</button>
-    </div>
-    <div class="section-title">Carrito</div>
-    <div id="carrito-lista"><em>Sin productos</em></div>
-    <div id="venta-total">Total: Q0.00</div>
-    <div id="venta-error"></div>
-    <br/>
-    <button class="btn-primary" onclick="procesarVenta()">Confirmar venta</button>
-  </div>
+  <div id="main">
 
-  <!-- PRODUCTOS -->
-  <div id="page-productos" class="page">
-    <h1>Productos</h1>
-    <div class="form-row">
-      <input type="hidden" id="prod-id"/>
-      <label>Nombre <input id="prod-nombre" placeholder="Nombre"/></label>
-      <label>Descripción <input id="prod-desc" placeholder="Opcional"/></label>
-      <label>Precio <input id="prod-precio" type="number" step="0.01" min="0" style="width:80px"/></label>
-      <label>Stock <input id="prod-stock" type="number" min="0" style="width:70px"/></label>
-      <label>Categoría <select id="prod-cat"></select></label>
-      <button class="btn-primary" onclick="guardarProducto()">Guardar</button>
-      <button onclick="cancelarEdicion('prod')">Cancelar</button>
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page">
+      <h1>Dashboard</h1>
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-val" id="kpi-productos">—</div><div class="kpi-lbl">Productos</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpi-clientes">—</div><div class="kpi-lbl">Clientes</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpi-ventas">—</div><div class="kpi-lbl">Ventas</div></div>
+      </div>
+      <div class="section-title">Últimas ventas</div>
+      <table><thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Empleado</th><th>Total</th></tr></thead>
+      <tbody id="dash-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
     </div>
-    <div id="prod-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
-    <table><thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Acciones</th></tr></thead>
-    <tbody id="prod-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
-  </div>
 
-  <!-- CATEGORIAS -->
-  <div id="page-categorias" class="page">
-    <h1>Categorías</h1>
-    <div class="form-row">
-      <input type="hidden" id="cat-id"/>
-      <label>Nombre <input id="cat-nombre" placeholder="Nombre"/></label>
-      <label>Descripción <input id="cat-desc" placeholder="Opcional"/></label>
-      <button class="btn-primary" onclick="guardarCategoria()">Guardar</button>
-      <button onclick="cancelarEdicion('cat')">Cancelar</button>
+    <!-- NUEVA VENTA -->
+    <div id="page-ventas" class="page">
+      <h1>Nueva Venta</h1>
+      <div id="ventas-denied" class="access-denied" style="display:none">
+        <div class="icon">🔒</div>
+        <h2>Acceso restringido</h2>
+        <p>Solo admin, gerente, cajero y vendedor pueden registrar ventas.</p>
+      </div>
+      <div id="ventas-form">
+        <div class="form-row">
+          <label>Cliente <select id="v-cliente"><option value="">Seleccionar…</option></select></label>
+          <label>Empleado <select id="v-empleado"><option value="">Seleccionar…</option></select></label>
+        </div>
+        <div class="section-title">Agregar producto</div>
+        <div class="form-row">
+          <label>Producto <select id="v-producto"><option value="">Seleccionar…</option></select></label>
+          <label>Cantidad <input type="number" id="v-cantidad" value="1" min="1" style="width:70px"/></label>
+          <button class="btn-primary" onclick="agregarProducto()">Agregar</button>
+        </div>
+        <div class="section-title">Carrito</div>
+        <div id="carrito-lista"><em>Sin productos</em></div>
+        <div id="venta-total">Total: Q0.00</div>
+        <div id="venta-error"></div>
+        <br/>
+        <button class="btn-primary" onclick="procesarVenta()">✅ Confirmar venta</button>
+      </div>
     </div>
-    <div id="cat-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
-    <table><thead><tr><th>Nombre</th><th>Descripción</th><th>Acciones</th></tr></thead>
-    <tbody id="cat-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
-  </div>
 
-  <!-- CLIENTES -->
-  <div id="page-clientes" class="page">
-    <h1>Clientes</h1>
-    <div class="form-row">
-      <input type="hidden" id="cli-id"/>
-      <label>Nombre <input id="cli-nombre" placeholder="Nombre completo"/></label>
-      <label>Email <input id="cli-email" type="email" placeholder="correo@email.com"/></label>
-      <label>Teléfono <input id="cli-tel" placeholder="5501-0000"/></label>
-      <button class="btn-primary" onclick="guardarCliente()">Guardar</button>
-      <button onclick="cancelarEdicion('cli')">Cancelar</button>
+    <!-- PRODUCTOS -->
+    <div id="page-productos" class="page">
+      <h1>Productos</h1>
+      <!-- Formulario visible solo para admin/gerente/bodeguero -->
+      <div id="prod-form-area">
+        <div class="form-row">
+          <input type="hidden" id="prod-id"/>
+          <label>Nombre <input id="prod-nombre" placeholder="Nombre"/></label>
+          <label>Descripción <input id="prod-desc" placeholder="Opcional"/></label>
+          <label>Precio <input id="prod-precio" type="number" step="0.01" min="0" style="width:90px"/></label>
+          <label>Stock <input id="prod-stock" type="number" min="0" style="width:75px"/></label>
+          <label>Categoría <select id="prod-cat"></select></label>
+          <button class="btn-primary" onclick="guardarProducto()">Guardar</button>
+          <button onclick="cancelarEdicion('prod')">Cancelar</button>
+        </div>
+        <div id="prod-error" class="error-msg"></div>
+      </div>
+      <table><thead><tr><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th id="prod-col-acciones">Acciones</th></tr></thead>
+      <tbody id="prod-body"><tr><td colspan="5">Cargando…</td></tr></tbody></table>
     </div>
-    <div id="cli-error" style="color:#dc2626;font-size:.85rem;margin-bottom:8px;"></div>
-    <table><thead><tr><th>Nombre</th><th>Email</th><th>Teléfono</th><th>Acciones</th></tr></thead>
-    <tbody id="cli-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
-  </div>
 
-  <!-- EMPLEADOS -->
-  <div id="page-empleados" class="page">
-    <h1>Empleados</h1>
-    <div class="form-row">
-      <input type="hidden" id="emp-id"/>
-      <label>Nombre <input id="emp-nombre" placeholder="Nombre completo"/></label>
-      <label>Puesto
-        <select id="emp-puesto">
-          <option>Cajero</option><option>Vendedor</option>
-          <option>Bodeguero</option><option>Gerente</option>
-        </select>
-      </label>
-      <button class="btn-primary" onclick="guardarEmpleado()">Guardar</button>
-      <button onclick="cancelarEdicion('emp')">Cancelar</button>
+    <!-- CATEGORIAS -->
+    <div id="page-categorias" class="page">
+      <h1>Categorías</h1>
+      <div id="cat-form-area">
+        <div class="form-row">
+          <input type="hidden" id="cat-id"/>
+          <label>Nombre <input id="cat-nombre" placeholder="Nombre"/></label>
+          <label>Descripción <input id="cat-desc" placeholder="Opcional"/></label>
+          <button class="btn-primary" onclick="guardarCategoria()">Guardar</button>
+          <button onclick="cancelarEdicion('cat')">Cancelar</button>
+        </div>
+        <div id="cat-error" class="error-msg"></div>
+      </div>
+      <table><thead><tr><th>Nombre</th><th>Descripción</th><th id="cat-col-acciones">Acciones</th></tr></thead>
+      <tbody id="cat-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
     </div>
-    <table><thead><tr><th>Nombre</th><th>Puesto</th><th>Acciones</th></tr></thead>
-    <tbody id="emp-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
-  </div>
 
-  <!-- PROVEEDORES -->
-  <div id="page-proveedores" class="page">
-    <h1>Proveedores</h1>
-    <div class="form-row">
-      <input type="hidden" id="prov-id"/>
-      <label>Nombre <input id="prov-nombre" placeholder="Nombre"/></label>
-      <label>Teléfono <input id="prov-tel" placeholder="2345-0000"/></label>
-      <label>Email <input id="prov-email" type="email" placeholder="correo@proveedor.com"/></label>
-      <button class="btn-primary" onclick="guardarProveedor()">Guardar</button>
-      <button onclick="cancelarEdicion('prov')">Cancelar</button>
+    <!-- CLIENTES -->
+    <div id="page-clientes" class="page">
+      <h1>Clientes</h1>
+      <div id="cli-form-area">
+        <div class="form-row">
+          <input type="hidden" id="cli-id"/>
+          <label>Nombre <input id="cli-nombre" placeholder="Nombre completo"/></label>
+          <label>Email <input id="cli-email" type="email" placeholder="correo@email.com"/></label>
+          <label>Teléfono <input id="cli-tel" placeholder="5501-0000"/></label>
+          <button class="btn-primary" onclick="guardarCliente()">Guardar</button>
+          <button onclick="cancelarEdicion('cli')">Cancelar</button>
+        </div>
+        <div id="cli-error" class="error-msg"></div>
+      </div>
+      <table><thead><tr><th>Nombre</th><th>Email</th><th>Teléfono</th><th id="cli-col-acciones">Acciones</th></tr></thead>
+      <tbody id="cli-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
     </div>
-    <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th>Acciones</th></tr></thead>
-    <tbody id="prov-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
-  </div>
 
-  <!-- REPORTES -->
-  <div id="page-reportes" class="page">
-    <h1>Reportes SQL</h1>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <button onclick="showReport('ventas-detalle')">Ventas (VIEW)</button>
-      <button onclick="showReport('productos-vendidos')">Prod. vendidos (JOIN)</button>
-      <button onclick="showReport('clientes-compras')">Clientes (JOIN)</button>
-      <button onclick="showReport('ventas-por-categoria')">Por categoría (GROUP BY)</button>
-      <button onclick="showReport('productos-sin-ventas')">Sin ventas (IN)</button>
-      <button onclick="showReport('clientes-frecuentes')">Frecuentes (EXISTS)</button>
-      <button onclick="showReport('ranking-empleados')">Empleados (CTE)</button>
-      <button onclick="showReport('stock-bajo')">Stock bajo (subquery)</button>
-      <button class="btn-primary" onclick="exportarCSV()">Exportar CSV</button>
+    <!-- EMPLEADOS -->
+    <div id="page-empleados" class="page">
+      <h1>Empleados</h1>
+      <div id="emp-form-area">
+        <div class="form-row">
+          <input type="hidden" id="emp-id"/>
+          <label>Nombre <input id="emp-nombre" placeholder="Nombre completo"/></label>
+          <label>Puesto
+            <select id="emp-puesto">
+              <option>Cajero</option><option>Vendedor</option>
+              <option>Bodeguero</option><option>Gerente</option>
+            </select>
+          </label>
+          <button class="btn-primary" onclick="guardarEmpleado()">Guardar</button>
+          <button onclick="cancelarEdicion('emp')">Cancelar</button>
+        </div>
+      </div>
+      <table><thead><tr><th>Nombre</th><th>Puesto</th><th id="emp-col-acciones">Acciones</th></tr></thead>
+      <tbody id="emp-body"><tr><td colspan="3">Cargando…</td></tr></tbody></table>
     </div>
-    <div id="reporte-label" style="font-size:.8rem;color:#666;margin-bottom:8px;"></div>
-    <table><thead id="rep-head"></thead><tbody id="rep-body"><tr><td>Selecciona un reporte…</td></tr></tbody></table>
-  </div>
 
-</div>
+    <!-- PROVEEDORES -->
+    <div id="page-proveedores" class="page">
+      <h1>Proveedores</h1>
+      <div id="prov-form-area">
+        <div class="form-row">
+          <input type="hidden" id="prov-id"/>
+          <label>Nombre <input id="prov-nombre" placeholder="Nombre"/></label>
+          <label>Teléfono <input id="prov-tel" placeholder="2345-0000"/></label>
+          <label>Email <input id="prov-email" type="email" placeholder="correo@proveedor.com"/></label>
+          <button class="btn-primary" onclick="guardarProveedor()">Guardar</button>
+          <button onclick="cancelarEdicion('prov')">Cancelar</button>
+        </div>
+      </div>
+      <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Email</th><th id="prov-col-acciones">Acciones</th></tr></thead>
+      <tbody id="prov-body"><tr><td colspan="4">Cargando…</td></tr></tbody></table>
+    </div>
+
+    <!-- REPORTES -->
+    <div id="page-reportes" class="page">
+      <h1>Reportes SQL</h1>
+      <div id="reportes-denied" class="access-denied" style="display:none">
+        <div class="icon">🔒</div>
+        <h2>Acceso restringido</h2>
+        <p>Solo admin y gerente pueden ver los reportes financieros.</p>
+      </div>
+      <div id="reportes-content">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <button onclick="showReport('ventas-detalle')">Ventas (VIEW)</button>
+          <button onclick="showReport('productos-vendidos')">Prod. vendidos</button>
+          <button onclick="showReport('clientes-compras')">Clientes</button>
+          <button onclick="showReport('ventas-por-categoria')">Por categoría</button>
+          <button onclick="showReport('productos-sin-ventas')">Sin ventas</button>
+          <button onclick="showReport('clientes-frecuentes')">Frecuentes</button>
+          <button onclick="showReport('ranking-empleados')">Empleados (CTE)</button>
+          <button onclick="showReport('stock-bajo')">Stock bajo</button>
+          <button onclick="showReport('top-productos')">Top productos (SP)</button>
+          <button class="btn-primary" onclick="exportarCSV()">⬇ CSV</button>
+        </div>
+        <div id="reporte-label" style="font-size:.8rem;color:#64748b;margin-bottom:8px;"></div>
+        <table>
+          <thead id="rep-head"></thead>
+          <tbody id="rep-body"><tr><td>Selecciona un reporte…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
 
 <div id="alert"></div>
 
 <script>
+// ═══════════════════════════════════════════════════════════
+// CONFIGURACIÓN
+// ═══════════════════════════════════════════════════════════
 const API = 'http://localhost:3008';
 
-function goTo(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
-  document.querySelector(`#sidebar a[onclick="goTo('${page}')"]`).classList.add('active');
-  loaders[page]?.();
-}
+// Permisos por sección según rol
+// Qué roles pueden VER cada página
+const PERMISOS_VER = {
+  dashboard:   ['admin','gerente','cajero','bodeguero','vendedor'],
+  ventas:      ['admin','gerente','cajero','vendedor'],
+  productos:   ['admin','gerente','cajero','bodeguero','vendedor'],
+  categorias:  ['admin','gerente','cajero','bodeguero','vendedor'],
+  clientes:    ['admin','gerente','cajero','vendedor'],
+  empleados:   ['admin','gerente'],
+  proveedores: ['admin','gerente'],
+  reportes:    ['admin','gerente'],
+};
 
+// Qué roles pueden EDITAR/CREAR/ELIMINAR en cada sección
+const PERMISOS_EDITAR = {
+  productos:   ['admin','gerente','bodeguero'],
+  categorias:  ['admin','gerente'],
+  clientes:    ['admin','gerente','cajero','vendedor'],
+  empleados:   ['admin','gerente'],
+  proveedores: ['admin','gerente'],
+};
+
+// ═══════════════════════════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════════
+let usuarioActual = null;
+let carrito = [];
+
+// ═══════════════════════════════════════════════════════════
+// UTILIDADES
+// ═══════════════════════════════════════════════════════════
 function showAlert(msg, type = 'ok') {
   const el = document.getElementById('alert');
   el.textContent = msg;
   el.className = 'alert-' + type;
   el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 3000);
+  setTimeout(() => el.style.display = 'none', 3500);
 }
 
 async function api(path, opts = {}) {
-  const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  const res = await fetch(API + path, {
+    credentials: 'include',   // enviar cookie de sesión
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Error');
+  if (!res.ok) throw new Error(data.error || 'Error en la solicitud');
   return data;
 }
 
 const Q = n => 'Q' + parseFloat(n || 0).toFixed(2);
 
+function puedoVer(seccion) {
+  if (!usuarioActual) return false;
+  return (PERMISOS_VER[seccion] || []).includes(usuarioActual.rol);
+}
+
+function puedoEditar(seccion) {
+  if (!usuarioActual) return false;
+  return (PERMISOS_EDITAR[seccion] || []).includes(usuarioActual.rol);
+}
+
 function cancelarEdicion(prefix) {
-  document.getElementById(prefix + '-id').value = '';
+  const idEl = document.getElementById(prefix + '-id');
+  if (idEl) idEl.value = '';
   document.querySelectorAll(`[id^="${prefix}-"]`).forEach(el => {
     if (el.tagName === 'INPUT' && el.type !== 'hidden') el.value = '';
   });
 }
 
-// ── DASHBOARD ──
+// ═══════════════════════════════════════════════════════════
+// AUTENTICACIÓN
+// ═══════════════════════════════════════════════════════════
+async function doLogin() {
+  const username = document.getElementById('l-user').value.trim();
+  const password = document.getElementById('l-pass').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  if (!username || !password) {
+    errEl.textContent = 'Ingresa usuario y contraseña';
+    return;
+  }
+
+  try {
+    const data = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+    usuarioActual = data.usuario;
+    iniciarApp();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+}
+
+// Enter en los inputs del login
+document.getElementById('l-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('l-user').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+async function doLogout() {
+  try {
+    await api('/auth/logout', { method: 'POST' });
+  } catch (_) {}
+  usuarioActual = null;
+  document.getElementById('app').classList.remove('visible');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('l-pass').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+// Verificar si ya hay sesión activa al cargar
+async function checkSession() {
+  try {
+    const data = await api('/auth/me');
+    usuarioActual = data.usuario;
+    iniciarApp();
+  } catch (_) {
+    // No hay sesión, mostrar login
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// INICIAR APP (post-login)
+// ═══════════════════════════════════════════════════════════
+function iniciarApp() {
+  // Ocultar login, mostrar app
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+
+  // Mostrar info del usuario
+  document.getElementById('user-name').textContent = usuarioActual.nombre;
+  document.getElementById('user-rol').textContent  = usuarioActual.rol;
+
+  // Configurar sidebar según rol
+  configurarSidebar();
+
+  // Ir al dashboard
+  goTo('dashboard');
+}
+
+function configurarSidebar() {
+  const secciones = ['dashboard','ventas','productos','categorias','clientes','empleados','proveedores','reportes'];
+  secciones.forEach(sec => {
+    const el = document.getElementById('nav-' + sec);
+    if (el) {
+      if (puedoVer(sec)) {
+        el.classList.remove('nav-hidden');
+      } else {
+        el.classList.add('nav-hidden');
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════════════════════
+function goTo(page) {
+  // Si no tiene permiso para ver esta página, redirigir a dashboard
+  if (!puedoVer(page)) {
+    goTo('dashboard');
+    return;
+  }
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#sidebar a').forEach(a => a.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+  const navEl = document.getElementById('nav-' + page);
+  if (navEl) navEl.classList.add('active');
+
+  loaders[page]?.();
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
 async function loadDashboard() {
   try {
-    const [productos, clientes, ventas] = await Promise.all([
-      api('/productos'), api('/clientes'), api('/reportes/ventas-detalle')
+    const [productos, clientes] = await Promise.all([
+      api('/productos'), api('/clientes'),
     ]);
-    document.getElementById('kpi-text').textContent =
-      `${productos.length} productos · ${clientes.length} clientes · ${ventas.length} ventas registradas`;
-    document.getElementById('dash-body').innerHTML = ventas.slice(0, 10).map(v => `
-      <tr><td>#${v.id_venta}</td><td>${new Date(v.fecha).toLocaleDateString('es-GT')}</td>
-      <td>${v.cliente}</td><td>${v.empleado} (${v.puesto})</td><td>${Q(v.total)}</td></tr>`).join('');
+    document.getElementById('kpi-productos').textContent = productos.length;
+    document.getElementById('kpi-clientes').textContent  = clientes.length;
+
+    // Ventas solo si tiene permiso
+    if (puedoVer('reportes')) {
+      const ventas = await api('/reportes/ventas-detalle');
+      document.getElementById('kpi-ventas').textContent = ventas.length;
+      document.getElementById('dash-body').innerHTML = ventas.slice(0, 10).map(v => `
+        <tr><td>#${v.id_venta}</td>
+        <td>${new Date(v.fecha).toLocaleDateString('es-GT')}</td>
+        <td>${v.cliente}</td><td>${v.empleado} (${v.puesto})</td>
+        <td>${Q(v.total)}</td></tr>`).join('');
+    } else {
+      document.getElementById('kpi-ventas').textContent = '—';
+      document.getElementById('dash-body').innerHTML =
+        '<tr><td colspan="5" style="color:#94a3b8;text-align:center">Sin permiso para ver ventas</td></tr>';
+    }
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── PRODUCTOS ──
+// ═══════════════════════════════════════════════════════════
+// PRODUCTOS
+// ═══════════════════════════════════════════════════════════
 async function loadProductos() {
   try {
     const [rows, cats] = await Promise.all([api('/productos'), api('/categorias')]);
-    document.getElementById('prod-cat').innerHTML = cats.map(c => `<option value="${c.id_categoria}">${c.nombre}</option>`).join('');
+
+    // Formulario visible solo si puede editar
+    document.getElementById('prod-form-area').style.display =
+      puedoEditar('productos') ? 'block' : 'none';
+
+    // Columna acciones visible solo si puede editar
+    const colAcc = document.getElementById('prod-col-acciones');
+    colAcc.style.display = puedoEditar('productos') ? '' : 'none';
+
+    // Poblar select de categorías
+    document.getElementById('prod-cat').innerHTML =
+      cats.map(c => `<option value="${c.id_categoria}">${c.nombre}</option>`).join('');
+
+    const puedeEdit = puedoEditar('productos');
     document.getElementById('prod-body').innerHTML = rows.map(p => `
-      <tr><td>${p.nombre}</td><td>${p.categoria}</td><td>${Q(p.precio)}</td><td>${p.stock}</td>
-      <td>
-        <button class="btn-edit" onclick='editProd(${JSON.stringify(p)})'>Editar</button>
-        <button class="btn-danger" onclick="delProd(${p.id_producto})">Eliminar</button>
-      </td></tr>`).join('');
+      <tr>
+        <td>${p.nombre}</td>
+        <td>${p.categoria}</td>
+        <td>${Q(p.precio)}</td>
+        <td>${p.stock}</td>
+        ${puedeEdit ? `<td>
+          <button class="btn-edit" onclick='editProd(${JSON.stringify(p)})'>Editar</button>
+          ${usuarioActual.rol === 'admin' ? `<button class="btn-danger" onclick="delProd(${p.id_producto})">Eliminar</button>` : ''}
+        </td>` : '<td style="display:none"></td>'}
+      </tr>`).join('');
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function editProd(p) {
-  document.getElementById('prod-id').value = p.id_producto;
+  document.getElementById('prod-id').value    = p.id_producto;
   document.getElementById('prod-nombre').value = p.nombre;
-  document.getElementById('prod-desc').value = p.descripcion || '';
+  document.getElementById('prod-desc').value   = p.descripcion || '';
   document.getElementById('prod-precio').value = p.precio;
-  document.getElementById('prod-stock').value = p.stock;
-  document.getElementById('prod-cat').value = p.id_categoria;
+  document.getElementById('prod-stock').value  = p.stock;
+  document.getElementById('prod-cat').value    = p.id_categoria;
 }
 
 async function guardarProducto() {
+  if (!puedoEditar('productos')) return;
   const errEl = document.getElementById('prod-error');
   const id = document.getElementById('prod-id').value;
   const body = {
-    nombre: document.getElementById('prod-nombre').value.trim(),
-    descripcion: document.getElementById('prod-desc').value.trim(),
-    precio: parseFloat(document.getElementById('prod-precio').value),
-    stock: parseInt(document.getElementById('prod-stock').value),
+    nombre:       document.getElementById('prod-nombre').value.trim(),
+    descripcion:  document.getElementById('prod-desc').value.trim(),
+    precio:       parseFloat(document.getElementById('prod-precio').value),
+    stock:        parseInt(document.getElementById('prod-stock').value),
     id_categoria: parseInt(document.getElementById('prod-cat').value),
   };
-  if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
+  if (!body.nombre)                          { errEl.textContent = 'El nombre es requerido'; return; }
   if (isNaN(body.precio) || body.precio < 0) { errEl.textContent = 'Precio inválido'; return; }
-  if (isNaN(body.stock) || body.stock < 0) { errEl.textContent = 'Stock inválido'; return; }
+  if (isNaN(body.stock)  || body.stock  < 0) { errEl.textContent = 'Stock inválido'; return; }
   errEl.textContent = '';
   try {
-    if (id) await api('/productos/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    if (id) await api('/productos/' + id, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/productos',        { method: 'POST', body: JSON.stringify(body) });
     cancelarEdicion('prod');
     showAlert(id ? 'Producto actualizado' : 'Producto creado');
@@ -287,33 +654,46 @@ async function delProd(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── CATEGORÍAS ──
+// ═══════════════════════════════════════════════════════════
+// CATEGORÍAS
+// ═══════════════════════════════════════════════════════════
 async function loadCategorias() {
   try {
     const rows = await api('/categorias');
+    document.getElementById('cat-form-area').style.display =
+      puedoEditar('categorias') ? 'block' : 'none';
+    document.getElementById('cat-col-acciones').style.display =
+      puedoEditar('categorias') ? '' : 'none';
+
+    const puedeEdit = puedoEditar('categorias');
     document.getElementById('cat-body').innerHTML = rows.map(c => `
       <tr><td>${c.nombre}</td><td>${c.descripcion || '—'}</td>
-      <td>
+      ${puedeEdit ? `<td>
         <button class="btn-edit" onclick='editCat(${JSON.stringify(c)})'>Editar</button>
-        <button class="btn-danger" onclick="delCat(${c.id_categoria})">Eliminar</button>
-      </td></tr>`).join('');
+        ${usuarioActual.rol === 'admin' ? `<button class="btn-danger" onclick="delCat(${c.id_categoria})">Eliminar</button>` : ''}
+      </td>` : '<td style="display:none"></td>'}
+      </tr>`).join('');
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function editCat(c) {
-  document.getElementById('cat-id').value = c.id_categoria;
+  document.getElementById('cat-id').value    = c.id_categoria;
   document.getElementById('cat-nombre').value = c.nombre;
-  document.getElementById('cat-desc').value = c.descripcion || '';
+  document.getElementById('cat-desc').value   = c.descripcion || '';
 }
 
 async function guardarCategoria() {
+  if (!puedoEditar('categorias')) return;
   const errEl = document.getElementById('cat-error');
   const id = document.getElementById('cat-id').value;
-  const body = { nombre: document.getElementById('cat-nombre').value.trim(), descripcion: document.getElementById('cat-desc').value.trim() };
+  const body = {
+    nombre:      document.getElementById('cat-nombre').value.trim(),
+    descripcion: document.getElementById('cat-desc').value.trim(),
+  };
   if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
   errEl.textContent = '';
   try {
-    if (id) await api('/categorias/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    if (id) await api('/categorias/' + id, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/categorias',        { method: 'POST', body: JSON.stringify(body) });
     cancelarEdicion('cat');
     showAlert(id ? 'Categoría actualizada' : 'Categoría creada');
@@ -327,34 +707,47 @@ async function delCat(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── CLIENTES ──
+// ═══════════════════════════════════════════════════════════
+// CLIENTES
+// ═══════════════════════════════════════════════════════════
 async function loadClientes() {
   try {
     const rows = await api('/clientes');
+    document.getElementById('cli-form-area').style.display =
+      puedoEditar('clientes') ? 'block' : 'none';
+    document.getElementById('cli-col-acciones').style.display =
+      puedoEditar('clientes') ? '' : 'none';
+
+    const puedeEdit = puedoEditar('clientes');
     document.getElementById('cli-body').innerHTML = rows.map(c => `
-      <tr><td>${c.nombre}</td><td>${c.email || '—'}</td><td>${c.telefono || '—'}</td>
-      <td>
+      <tr><td>${c.nombre}</td><td>${c.email||'—'}</td><td>${c.telefono||'—'}</td>
+      ${puedeEdit ? `<td>
         <button class="btn-edit" onclick='editCli(${JSON.stringify(c)})'>Editar</button>
-        <button class="btn-danger" onclick="delCli(${c.id_cliente})">Eliminar</button>
-      </td></tr>`).join('');
+        ${usuarioActual.rol === 'admin' ? `<button class="btn-danger" onclick="delCli(${c.id_cliente})">Eliminar</button>` : ''}
+      </td>` : '<td style="display:none"></td>'}
+      </tr>`).join('');
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function editCli(c) {
-  document.getElementById('cli-id').value = c.id_cliente;
+  document.getElementById('cli-id').value     = c.id_cliente;
   document.getElementById('cli-nombre').value = c.nombre;
-  document.getElementById('cli-email').value = c.email || '';
-  document.getElementById('cli-tel').value = c.telefono || '';
+  document.getElementById('cli-email').value  = c.email || '';
+  document.getElementById('cli-tel').value    = c.telefono || '';
 }
 
 async function guardarCliente() {
   const errEl = document.getElementById('cli-error');
   const id = document.getElementById('cli-id').value;
-  const body = { nombre: document.getElementById('cli-nombre').value.trim(), email: document.getElementById('cli-email').value.trim(), telefono: document.getElementById('cli-tel').value.trim() };
+  const body = {
+    nombre:   document.getElementById('cli-nombre').value.trim(),
+    email:    document.getElementById('cli-email').value.trim(),
+    telefono: document.getElementById('cli-tel').value.trim(),
+  };
   if (!body.nombre) { errEl.textContent = 'El nombre es requerido'; return; }
   errEl.textContent = '';
   try {
-    if (id) await api('/clientes/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    if (id) await api('/clientes/' + id, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/clientes',        { method: 'POST', body: JSON.stringify(body) });
     cancelarEdicion('cli');
     showAlert(id ? 'Cliente actualizado' : 'Cliente creado');
@@ -368,30 +761,42 @@ async function delCli(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── EMPLEADOS ──
+// ═══════════════════════════════════════════════════════════
+// EMPLEADOS
+// ═══════════════════════════════════════════════════════════
 async function loadEmpleados() {
   try {
     const rows = await api('/empleados');
+    document.getElementById('emp-form-area').style.display =
+      puedoEditar('empleados') ? 'block' : 'none';
+    document.getElementById('emp-col-acciones').style.display =
+      puedoEditar('empleados') ? '' : 'none';
+
+    const puedeEdit = puedoEditar('empleados');
     document.getElementById('emp-body').innerHTML = rows.map(e => `
       <tr><td>${e.nombre}</td><td>${e.puesto}</td>
-      <td>
+      ${puedeEdit ? `<td>
         <button class="btn-edit" onclick='editEmp(${JSON.stringify(e)})'>Editar</button>
-        <button class="btn-danger" onclick="delEmp(${e.id_empleado})">Eliminar</button>
-      </td></tr>`).join('');
+        ${usuarioActual.rol === 'admin' ? `<button class="btn-danger" onclick="delEmp(${e.id_empleado})">Eliminar</button>` : ''}
+      </td>` : '<td style="display:none"></td>'}
+      </tr>`).join('');
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function editEmp(e) {
-  document.getElementById('emp-id').value = e.id_empleado;
+  document.getElementById('emp-id').value     = e.id_empleado;
   document.getElementById('emp-nombre').value = e.nombre;
   document.getElementById('emp-puesto').value = e.puesto;
 }
 
 async function guardarEmpleado() {
   const id = document.getElementById('emp-id').value;
-  const body = { nombre: document.getElementById('emp-nombre').value.trim(), puesto: document.getElementById('emp-puesto').value };
+  const body = {
+    nombre: document.getElementById('emp-nombre').value.trim(),
+    puesto: document.getElementById('emp-puesto').value,
+  };
   try {
-    if (id) await api('/empleados/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    if (id) await api('/empleados/' + id, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/empleados',        { method: 'POST', body: JSON.stringify(body) });
     cancelarEdicion('emp');
     showAlert(id ? 'Empleado actualizado' : 'Empleado creado');
@@ -405,31 +810,44 @@ async function delEmp(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── PROVEEDORES ──
+// ═══════════════════════════════════════════════════════════
+// PROVEEDORES
+// ═══════════════════════════════════════════════════════════
 async function loadProveedores() {
   try {
     const rows = await api('/proveedores');
+    document.getElementById('prov-form-area').style.display =
+      puedoEditar('proveedores') ? 'block' : 'none';
+    document.getElementById('prov-col-acciones').style.display =
+      puedoEditar('proveedores') ? '' : 'none';
+
+    const puedeEdit = puedoEditar('proveedores');
     document.getElementById('prov-body').innerHTML = rows.map(p => `
-      <tr><td>${p.nombre}</td><td>${p.telefono || '—'}</td><td>${p.email || '—'}</td>
-      <td>
+      <tr><td>${p.nombre}</td><td>${p.telefono||'—'}</td><td>${p.email||'—'}</td>
+      ${puedeEdit ? `<td>
         <button class="btn-edit" onclick='editProv(${JSON.stringify(p)})'>Editar</button>
-        <button class="btn-danger" onclick="delProv(${p.id_proveedor})">Eliminar</button>
-      </td></tr>`).join('');
+        ${usuarioActual.rol === 'admin' ? `<button class="btn-danger" onclick="delProv(${p.id_proveedor})">Eliminar</button>` : ''}
+      </td>` : '<td style="display:none"></td>'}
+      </tr>`).join('');
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function editProv(p) {
-  document.getElementById('prov-id').value = p.id_proveedor;
+  document.getElementById('prov-id').value     = p.id_proveedor;
   document.getElementById('prov-nombre').value = p.nombre;
-  document.getElementById('prov-tel').value = p.telefono || '';
-  document.getElementById('prov-email').value = p.email || '';
+  document.getElementById('prov-tel').value    = p.telefono || '';
+  document.getElementById('prov-email').value  = p.email || '';
 }
 
 async function guardarProveedor() {
   const id = document.getElementById('prov-id').value;
-  const body = { nombre: document.getElementById('prov-nombre').value.trim(), telefono: document.getElementById('prov-tel').value.trim(), email: document.getElementById('prov-email').value.trim() };
+  const body = {
+    nombre:   document.getElementById('prov-nombre').value.trim(),
+    telefono: document.getElementById('prov-tel').value.trim(),
+    email:    document.getElementById('prov-email').value.trim(),
+  };
   try {
-    if (id) await api('/proveedores/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    if (id) await api('/proveedores/' + id, { method: 'PUT',  body: JSON.stringify(body) });
     else    await api('/proveedores',        { method: 'POST', body: JSON.stringify(body) });
     cancelarEdicion('prov');
     showAlert(id ? 'Proveedor actualizado' : 'Proveedor creado');
@@ -443,29 +861,44 @@ async function delProv(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-// ── NUEVA VENTA ──
-let carrito = [];
-
+// ═══════════════════════════════════════════════════════════
+// VENTAS
+// ═══════════════════════════════════════════════════════════
 async function loadVentas() {
-  const [clientes, empleados, productos] = await Promise.all([api('/clientes'), api('/empleados'), api('/productos')]);
-  document.getElementById('v-cliente').innerHTML = '<option value="">Seleccionar…</option>' +
+  if (!puedoVer('ventas')) {
+    document.getElementById('ventas-denied').style.display = 'block';
+    document.getElementById('ventas-form').style.display   = 'none';
+    return;
+  }
+  document.getElementById('ventas-denied').style.display = 'none';
+  document.getElementById('ventas-form').style.display   = 'block';
+
+  const [clientes, empleados, productos] = await Promise.all([
+    api('/clientes'), api('/empleados'), api('/productos'),
+  ]);
+  document.getElementById('v-cliente').innerHTML =
+    '<option value="">Seleccionar…</option>' +
     clientes.map(c => `<option value="${c.id_cliente}">${c.nombre}</option>`).join('');
-  document.getElementById('v-empleado').innerHTML = '<option value="">Seleccionar…</option>' +
+  document.getElementById('v-empleado').innerHTML =
+    '<option value="">Seleccionar…</option>' +
     empleados.map(e => `<option value="${e.id_empleado}">${e.nombre} (${e.puesto})</option>`).join('');
-  document.getElementById('v-producto').innerHTML = '<option value="">Seleccionar…</option>' +
-    productos.map(p => `<option value="${p.id_producto}" data-precio="${p.precio}" data-stock="${p.stock}">${p.nombre} — ${Q(p.precio)} (stock: ${p.stock})</option>`).join('');
+  document.getElementById('v-producto').innerHTML =
+    '<option value="">Seleccionar…</option>' +
+    productos.map(p =>
+      `<option value="${p.id_producto}" data-precio="${p.precio}" data-stock="${p.stock}">${p.nombre} — ${Q(p.precio)} (stock: ${p.stock})</option>`
+    ).join('');
   carrito = [];
   renderCarrito();
 }
 
 function agregarProducto() {
-  const sel = document.getElementById('v-producto');
-  const id = parseInt(sel.value);
+  const sel  = document.getElementById('v-producto');
+  const id   = parseInt(sel.value);
   const cant = parseInt(document.getElementById('v-cantidad').value);
   if (!id || cant < 1) { showAlert('Selecciona producto y cantidad válida', 'err'); return; }
-  const opt = sel.options[sel.selectedIndex];
+  const opt   = sel.options[sel.selectedIndex];
   const precio = parseFloat(opt.dataset.precio);
-  const stock = parseInt(opt.dataset.stock);
+  const stock  = parseInt(opt.dataset.stock);
   if (cant > stock) { showAlert(`Stock insuficiente (disponible: ${stock})`, 'err'); return; }
   const ex = carrito.find(i => i.id_producto === id);
   if (ex) ex.cantidad += cant;
@@ -483,32 +916,37 @@ function renderCarrito() {
           <span>${Q(item.precio * item.cantidad)}</span>
           <button onclick="removeItem(${i})">✕</button>
         </div>`).join('')
-    : '<em>Sin productos</em>';
+    : '<em style="color:#94a3b8">Sin productos</em>';
   const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
   document.getElementById('venta-total').textContent = 'Total: ' + Q(total);
 }
 
 function updateCant(i, v) { carrito[i].cantidad = Math.max(1, parseInt(v) || 1); renderCarrito(); }
-function removeItem(i) { carrito.splice(i, 1); renderCarrito(); }
+function removeItem(i)    { carrito.splice(i, 1); renderCarrito(); }
 
 async function procesarVenta() {
-  const errEl = document.getElementById('venta-error');
+  const errEl      = document.getElementById('venta-error');
   const id_cliente  = parseInt(document.getElementById('v-cliente').value);
   const id_empleado = parseInt(document.getElementById('v-empleado').value);
-  if (!id_cliente)     { errEl.textContent = 'Selecciona un cliente'; return; }
+  if (!id_cliente)     { errEl.textContent = 'Selecciona un cliente';  return; }
   if (!id_empleado)    { errEl.textContent = 'Selecciona un empleado'; return; }
   if (!carrito.length) { errEl.textContent = 'Agrega al menos un producto'; return; }
   errEl.textContent = '';
   try {
-    const r = await api('/ventas', { method: 'POST', body: JSON.stringify({ id_cliente, id_empleado, productos: carrito }) });
-    showAlert(`Venta #${r.id_venta} registrada`);
+    const r = await api('/ventas', {
+      method: 'POST',
+      body: JSON.stringify({ id_cliente, id_empleado, productos: carrito }),
+    });
+    showAlert(`✅ Venta #${r.id_venta} registrada`);
     carrito = [];
     renderCarrito();
     loadVentas();
   } catch (e) { errEl.textContent = '⚠ ' + e.message; }
 }
 
-// ── REPORTES ──
+// ═══════════════════════════════════════════════════════════
+// REPORTES
+// ═══════════════════════════════════════════════════════════
 let repData = [];
 let repActual = '';
 
@@ -521,6 +959,7 @@ const repHeaders = {
   'clientes-frecuentes':  ['Cliente', 'Email', 'Teléfono'],
   'ranking-empleados':    ['Ranking', 'Empleado', 'Puesto', 'Ventas', 'Monto total'],
   'stock-bajo':           ['Producto', 'Stock', 'Categoría', 'Promedio cat.'],
+  'top-productos':        ['Producto', 'Categoría', 'Unidades', 'Ingresos'],
 };
 
 const repRow = {
@@ -532,7 +971,19 @@ const repRow = {
   'clientes-frecuentes':  r => [r.nombre, r.email||'—', r.telefono||'—'],
   'ranking-empleados':    r => ['#'+r.ranking, r.empleado, r.puesto, r.ventas_atendidas, Q(r.monto_total)],
   'stock-bajo':           r => [r.nombre, r.stock, r.categoria, parseFloat(r.promedio_categoria).toFixed(1)],
+  'top-productos':        r => [r.producto, r.categoria, r.unidades, Q(r.ingresos_total)],
 };
+
+function loadReportes() {
+  if (!puedoVer('reportes')) {
+    document.getElementById('reportes-denied').style.display  = 'block';
+    document.getElementById('reportes-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('reportes-denied').style.display  = 'none';
+  document.getElementById('reportes-content').style.display = 'block';
+  showReport('ventas-detalle');
+}
 
 async function showReport(name) {
   repActual = name;
@@ -541,24 +992,30 @@ async function showReport(name) {
   try {
     repData = await api('/reportes/' + name);
     const heads = repHeaders[name];
-    document.getElementById('rep-head').innerHTML = '<tr>' + heads.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    document.getElementById('rep-head').innerHTML =
+      '<tr>' + heads.map(h => `<th>${h}</th>`).join('') + '</tr>';
     document.getElementById('rep-body').innerHTML = repData.length
       ? repData.map(r => '<tr>' + repRow[name](r).map(c => `<td>${c}</td>`).join('') + '</tr>').join('')
-      : `<tr><td colspan="${heads.length}">Sin resultados</td></tr>`;
+      : `<tr><td colspan="${heads.length}" style="color:#94a3b8;text-align:center">Sin resultados</td></tr>`;
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 function exportarCSV() {
   if (!repData.length) { showAlert('No hay datos para exportar', 'err'); return; }
   const heads = repHeaders[repActual];
-  const csv = [heads, ...repData.map(r => repRow[repActual](r))].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([csv], {type:'text/csv'})), download: `reporte_${repActual}.csv` });
+  const csv = [heads, ...repData.map(r => repRow[repActual](r))]
+    .map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv' })),
+    download: `reporte_${repActual}.csv`,
+  });
   a.click();
   showAlert('CSV exportado');
 }
 
-function loadReportes() { showReport('ventas-detalle'); }
-
+// ═══════════════════════════════════════════════════════════
+// MAPA DE LOADERS
+// ═══════════════════════════════════════════════════════════
 const loaders = {
   dashboard:   loadDashboard,
   productos:   loadProductos,
@@ -570,7 +1027,10 @@ const loaders = {
   reportes:    loadReportes,
 };
 
-loadDashboard();
+// ═══════════════════════════════════════════════════════════
+// ARRANQUE — verificar sesión existente
+// ═══════════════════════════════════════════════════════════
+checkSession();
 </script>
 </body>
 </html>

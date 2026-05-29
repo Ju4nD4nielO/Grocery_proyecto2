@@ -236,8 +236,6 @@ INSERT INTO detalle_venta (id_venta, id_producto, cantidad, precio_unitario) VAL
 -- ============================================
 -- VISTAS
 -- ============================================
-
--- Vista: resumen de ventas con cliente y empleado
 CREATE OR REPLACE VIEW vista_ventas_detalle AS
 SELECT
     v.id_venta,
@@ -252,7 +250,6 @@ JOIN empleado e  ON v.id_empleado = e.id_empleado
 JOIN detalle_venta dv ON v.id_venta = dv.id_venta
 GROUP BY v.id_venta, v.fecha, c.nombre, e.nombre, e.puesto;
 
--- Vista: productos con categoría y stock
 CREATE OR REPLACE VIEW vista_productos_completo AS
 SELECT
     p.id_producto,
@@ -262,3 +259,47 @@ SELECT
     c.nombre AS categoria
 FROM producto p
 JOIN categoria c ON p.id_categoria = c.id_categoria;
+
+-- ============================================
+-- USUARIOS DE PRUEBA — uno por cada rol
+-- Contraseña de todos: "password123"
+-- Hash bcrypt generado con saltRounds=10
+-- ============================================
+INSERT INTO usuario_app (username, password_hash, rol, nombre) VALUES
+(
+  'admin1',
+  '$2b$10$BQQpm12un3DtbLM/Wx6Hwey4qh2AjRZOHw2mXqONdUjCy1qS/T5Tq',
+  'admin',
+  'Administrador Principal'
+),
+(
+  'gerente1',
+  '$2b$10$BQQpm12un3DtbLM/Wx6Hwey4qh2AjRZOHw2mXqONdUjCy1qS/T5Tq',
+  'gerente',
+  'Rosa Tzoc'
+),
+(
+  'cajero1',
+  '$2b$10$BQQpm12un3DtbLM/Wx6Hwey4qh2AjRZOHw2mXqONdUjCy1qS/T5Tq',
+  'cajero',
+  'Roberto Ajú'
+),
+(
+  'bodeguero1',
+  '$2b$10$BQQpm12un3DtbLM/Wx6Hwey4qh2AjRZOHw2mXqONdUjCy1qS/T5Tq',
+  'bodeguero',
+  'Oscar Choc'
+),
+(
+  'vendedor1',
+  '$2b$10$BQQpm12un3DtbLM/Wx6Hwey4qh2AjRZOHw2mXqONdUjCy1qS/T5Tq',
+  'vendedor',
+  'Elena Cuc'
+);
+-- Nota: el hash corresponde a la contraseña "password123"
+-- Usuarios de prueba por rol:
+--   admin1     / password123  → rol_admin
+--   gerente1   / password123  → rol_gerente
+--   cajero1    / password123  → rol_cajero
+--   bodeguero1 / password123  → rol_bodeguero
+--   vendedor1  / password123  → rol_vendedor

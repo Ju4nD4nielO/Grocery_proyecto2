@@ -1,50 +1,62 @@
-const express = require('express');
-const router = express.Router();
-const db = require('../db');
+const express  = require('express');
+const router   = express.Router();
+const { prisma } = require('../db');
+const { requireAuth, adminOGerente, soloAdmin } = require('../middleware/auth');
 
-router.get('/', async (req, res) => {
+// GET /categorias — todos los autenticados
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const result = await db.query('SELECT * FROM empleado ORDER BY nombre');
-    res.json(result.rows);
+    // ORM — Prisma (CRUD: READ)
+    const categorias = await prisma.categoria.findMany({
+      orderBy: { nombre: 'asc' },
+    });
+    res.json(categorias);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.post('/', async (req, res) => {
-  const { nombre, puesto } = req.body;
+// POST /categorias — admin, gerente
+router.post('/', ...adminOGerente, async (req, res) => {
+  const { nombre, descripcion } = req.body;
   if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
   try {
-    const result = await db.query(
-      'INSERT INTO empleado (nombre, puesto) VALUES ($1,$2) RETURNING *',
-      [nombre, puesto]
-    );
-    res.status(201).json(result.rows[0]);
+    // ORM — Prisma (CRUD: CREATE)
+    const nueva = await prisma.categoria.create({
+      data: { nombre, descripcion },
+    });
+    res.status(201).json(nueva);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-router.put('/:id', async (req, res) => {
-  const { nombre, puesto } = req.body;
+// PUT /categorias/:id — admin, gerente
+router.put('/:id', ...adminOGerente, async (req, res) => {
+  const { nombre, descripcion } = req.body;
   try {
-    const result = await db.query(
-      'UPDATE empleado SET nombre=$1, puesto=$2 WHERE id_empleado=$3 RETURNING *',
-      [nombre, puesto, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Empleado no encontrado' });
-    res.json(result.rows[0]);
+    // ORM — Prisma (CRUD: UPDATE)
+    const actualizada = await prisma.categoria.update({
+      where: { id_categoria: parseInt(req.params.id) },
+      data:  { nombre, descripcion },
+    });
+    res.json(actualizada);
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Categoría no encontrada' });
     res.status(500).json({ error: err.message });
   }
 });
 
-router.delete('/:id', async (req, res) => {
+// DELETE /categorias/:id — solo admin
+router.delete('/:id', ...soloAdmin, async (req, res) => {
   try {
-    const result = await db.query('DELETE FROM empleado WHERE id_empleado=$1 RETURNING *', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Empleado no encontrado' });
-    res.json({ message: 'Empleado eliminado' });
+    // ORM — Prisma (CRUD: DELETE)
+    await prisma.categoria.delete({
+      where: { id_categoria: parseInt(req.params.id) },
+    });
+    res.json({ message: 'Categoría eliminada' });
   } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Categoría no encontrada' });
     res.status(500).json({ error: err.message });
   }
 });
