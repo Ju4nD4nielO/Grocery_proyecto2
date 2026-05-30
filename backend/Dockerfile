@@ -1,16 +1,15 @@
-FROM node:18-alpine
+FROM node:18-bookworm-slim
+
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Instalar dependencias primero (capa cacheada)
 COPY package.json .
 RUN npm install
 
-# Copiar el schema de Prisma y generar el cliente
 COPY prisma ./prisma
 RUN npx prisma generate
 
-# Copiar el resto del código fuente
 COPY . .
 
 EXPOSE 3008

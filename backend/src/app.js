@@ -33,6 +33,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     secure:   false,   // true solo con HTTPS
+    sameSite: 'lax',      
     maxAge:   1000 * 60 * 60 * 8,  // 8 horas
   },
 }));
